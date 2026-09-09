@@ -1,0 +1,16 @@
+/* Rosé Pine Dawn palette, preserved from the original p5.js prototype.
+   Values from docs/00-visao-geral.md — do not swap palettes as part of an
+   unrelated change (see docs/04-arquitetura-tecnica.md). */
+:root {
+  --rp-base: rgb(250, 244, 237);
+  --rp-surface: rgb(255, 250, 243);
+  --rp-overlay: rgb(242, 233, 225);
+  --rp-muted: rgb(152, 147, 165);
+  --rp-subtle: rgb(121, 117, 147);
+  --rp-text: rgb(87, 82, 121);
+  --rp-pine: rgb(40, 105, 131);
+  --rp-foam: rgb(86, 148, 159);
+  --rp-iris: rgb(144, 122, 169);
+  --rp-rose: rgb(215, 130, 126);
+  --rp-highlight-medium: rgb(223, 218, 217);
+}

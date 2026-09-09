@@ -1,0 +1,32 @@
+# Flipo — local development stack.
+#
+# Provides Postgres for the Spring Boot backend (Flyway migrations, JPA) during
+# local development. Production uses a managed Postgres (Neon/Railway) —
+# see docs/04-arquitetura-tecnica.md. Not used in production.
+
+name: flipo
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: flipo-postgres
+    # restart: no so a fresh `docker compose up` after `down -v` is a clean slate.
+    restart: "no"
+    environment:
+      POSTGRES_USER: ${DB_USER:-flipo}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-flipo_dev_password}
+      POSTGRES_DB: ${DB_NAME:-flipo}
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres_data:
+    name: flipo-postgres-data

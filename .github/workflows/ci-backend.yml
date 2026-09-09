@@ -1,0 +1,71 @@
+# Backend CI — build and test the Spring Boot app under /backend.
+#
+# Postgres runs as a service container pinned to the same image/version as
+# docker-compose.yml (the local dev stack), so tests see the same Postgres
+# version in CI as on a dev machine.
+
+name: Backend CI
+
+on:
+  # No path filter on pull_request: this workflow's job name is a required
+  # status check on main. A path-filtered pull_request trigger means PRs
+  # that don't touch backend/ never produce this check, and GitHub blocks
+  # merge forever waiting on a required check that will never report.
+  pull_request: {}
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/ci-backend.yml'
+
+concurrency:
+  group: ci-backend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-ci:
+    name: Backend CI
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      # Same image/tag as the postgres service in docker-compose.yml.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: flipo
+          POSTGRES_PASSWORD: flipo_ci_password
+          POSTGRES_DB: flipo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U flipo -d flipo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: flipo
+      DB_USER: flipo
+      DB_PASSWORD: flipo_ci_password
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+
+      - name: mvnw test
+        run: ./mvnw -B test
+
+      - name: mvnw package
+        run: ./mvnw -B -DskipTests package

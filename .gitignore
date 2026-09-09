@@ -1,0 +1,4 @@
+# Real local env — never commit credentials. Copy .env.example instead.
+.env
+
+.DS_Store
