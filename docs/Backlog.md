@@ -18,10 +18,14 @@ Ao começar uma tarefa fora de ordem, anote por quê (ex: bloqueio, prioridade d
 - [x] `docker-compose.yml` com Postgres local (para rodar migrations Flyway sem depender do
       Neon/Railway durante o desenvolvimento) — `make up` / `make psql` / `make reset`
 - [x] Repositório Git inicializado (branch `main`)
-- [ ] Repositório remoto no GitHub criado e branch `main` protegida (mandatory CI, 1 aprovação,
-      sem push direto — ver seção "Branch protection" abaixo) — feito pelo dono do projeto
-- [x] CI básico (`.github/workflows/ci-backend.yml`, `ci-frontend.yml`) — build + testes por path,
-      só passa a rodar de verdade quando houver remoto
+- [x] Repositório remoto criado em [lucpc/Flipo](https://github.com/lucpc/Flipo) e branch `main`
+      protegida via ruleset (`main-protection`): PR obrigatório, 0 aprovações exigidas (projeto
+      solo — ver "Branch protection" abaixo), CI obrigatório (`Backend CI` + `Frontend CI`), sem
+      force-push, sem exclusão da branch. `current_user_can_bypass: never`, vale até pro dono.
+      Merge restrito a squash (`allow_squash_merge` only, `delete_branch_on_merge` ativado).
+- [x] CI básico (`.github/workflows/ci-backend.yml`, `ci-frontend.yml`) — build + testes, sem
+      filtro de path no gatilho `pull_request` (roda em todo PR, mesmo um que só mexe em `docs/`)
+      para que o required status check sempre reporte e nunca trave um PR indefinidamente
 
 ## Épico 1 — Modelo de dados e autenticação
 
@@ -105,10 +109,13 @@ docs(backlog): marca épico 3 como concluído
 
 ### Branch protection em `main`
 
+Aplicada via [ruleset](https://github.com/lucpc/Flipo/rules/22697263) `main-protection`:
+
 - CI obrigatório verde (`Backend CI`, `Frontend CI`)
-- Mínimo 1 aprovação (ou auto-merge liberado, por ser projeto solo — decisão do dono do repo)
-- Sem push direto
-- Histórico linear (squash merge)
+- 0 aprovações exigidas — projeto solo, ninguém além do dono pode aprovar o próprio PR
+- PR obrigatório, sem push direto (vale até para o dono do repo)
+- Sem force-push, sem exclusão da branch
+- Histórico linear (squash merge — único método habilitado no repo)
 
 ### Definição de pronto (por tarefa)
 
