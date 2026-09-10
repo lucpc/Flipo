@@ -1,13 +1,16 @@
 # Backlog — Flipo
 
-Este arquivo é o estado vivo do projeto: o que já foi feito, o que falta, e em que ordem. Existe
-para que uma sessão de desenvolvimento (humana ou assistida por IA) não precise reconstruir esse
+Este arquivo é o roadmap por épico e as convenções do projeto — não o rastreador tarefa-a-tarefa.
+O estado do que já foi feito, o que está em progresso e o que falta vive nas
+[GitHub Issues](https://github.com/lucpc/Flipo/issues) e no
+[Project board](https://github.com/users/lucpc/projects/1) (`gh project item-list 1 --owner lucpc`,
+ou peça pro agente `github-project`). Mantido assim de propósito — duplicar checkbox por tarefa
+aqui e status na issue são duas fontes que divergem cedo ou tarde.
+
+Existe pra que uma sessão de desenvolvimento (humana ou assistida por IA) não precise reconstruir
 contexto lendo todo o histórico de commits ou adivinhando pelo código — e para reduzir o risco de
 uma sessão de IA reabrir uma decisão já fechada (ver seção "Decisões de produto já fechadas" no
 `CLAUDE.md` e o skill `product-invariants`) por falta de contexto.
-
-Ao terminar uma tarefa, marque a caixa correspondente **na mesma alteração** que fecha a tarefa.
-Ao começar uma tarefa fora de ordem, anote por quê (ex: bloqueio, prioridade de portfolio).
 
 ## Épico 0 — Bootstrap do projeto
 
@@ -29,49 +32,43 @@ Ao começar uma tarefa fora de ordem, anote por quê (ex: bloqueio, prioridade d
 
 ## Épico 1 — Modelo de dados e autenticação
 
-- [ ] Entidades JPA + migrations Flyway a partir de `02-modelo-de-dados.md`
-- [ ] Registro/login com JWT (Spring Security)
-- [ ] Testes de serviço para regras de posse (usuário só acessa os próprios dados)
+Entidades JPA + migrations Flyway, registro/login JWT, testes de posse de dados.
+[Milestone](https://github.com/lucpc/Flipo/milestone/1) · issues `epic:E1`
 
 ## Épico 2 — CRUD de matérias
 
-- [ ] `GET/POST/DELETE /api/materias`
-- [ ] Contagem de ativos/arquivados por matéria (`totalAtivos`, `totalArquivados`)
-- [ ] Tela de lista de matérias (sem `MAX_MATERIAS`)
+Endpoints de matéria, contagem de ativos/arquivados, tela de lista (sem `MAX_MATERIAS`).
+[Milestone](https://github.com/lucpc/Flipo/milestone/2) · issues `epic:E2`
 
 ## Épico 3 — CRUD de cartões (manual)
 
-- [ ] `GET/POST/PATCH/DELETE /api/cartoes` conforme contrato
-- [ ] Criação manual → tela de revisão (mesmo componente usado pelo fluxo de IA)
-- [ ] Edição de cartão (pergunta/resposta, arquivar/desarquivar, excluir)
+Endpoints de cartão, criação manual → tela de revisão, edição/arquivar/excluir.
+[Milestone](https://github.com/lucpc/Flipo/milestone/3) · issues `epic:E3`
 
 ## Épico 4 — Sessão de estudo
 
-- [ ] Frontend consumindo `GET /cartoes?arquivado=false`
-- [ ] Flip + avançar, sem avaliação obrigatória
-- [ ] Edição inline a partir da sessão de estudo
+Consumo de `GET /cartoes?arquivado=false`, flip + avançar sem avaliação obrigatória, edição inline.
+[Milestone](https://github.com/lucpc/Flipo/milestone/4) · issues `epic:E4`
 
 ## Épico 5 — Geração por IA (fase de concepção — API estabelecida)
 
-- [ ] Interface `GeradorDeCartoes`
-- [ ] Implementação `GeradorAnthropic` e/ou `GeradorGemini` (camada barata: Haiku / Gemini Flash)
-- [ ] `POST /cartoes/gerar-ia` (sugestão, sem persistência) + `POST /cartoes/lote` (persistência)
+Interface `GeradorDeCartoes`, implementação Anthropic/Gemini, endpoints `gerar-ia` + `lote`.
+[Milestone](https://github.com/lucpc/Flipo/milestone/5) · issues `epic:E5`
 
 ## Épico 6 — BYOK
 
-- [ ] Tabela/entidade `ChaveApi` (criptografada em repouso)
-- [ ] `GET/POST/DELETE /usuarios/me/chaves` (nunca devolve a chave)
-- [ ] Seleção da implementação de `GeradorDeCartoes` por config quando o usuário tem chave própria
+Entidade `ChaveApi`, endpoints de chave, seleção de implementação por usuário.
+[Milestone](https://github.com/lucpc/Flipo/milestone/6) · issues `epic:E6`
 
 ## Épico 7 — Redução de custo (opcional, pós-validação)
 
-- [ ] Avaliar mover a cota padrão (não-BYOK) para Ollama ou Groq
-- [ ] Parsing tolerante a JSON malformado do modelo (necessário só se este épico for adotado)
+Avaliar Ollama/Groq como cota padrão; parsing tolerante a JSON malformado se adotado.
+[Milestone](https://github.com/lucpc/Flipo/milestone/7) · issues `epic:E7`
 
 ## Épico 8 — Polimento
 
-- [ ] Paleta Rosé Pine Dawn aplicada em todo o frontend
-- [ ] Aba de cartões arquivados por matéria
+Paleta Rosé Pine Dawn aplicada em todo o frontend; aba de cartões arquivados por matéria.
+[Milestone](https://github.com/lucpc/Flipo/milestone/8) · issues `epic:E8`
 
 ---
 
@@ -123,5 +120,5 @@ Aplicada via [ruleset](https://github.com/lucpc/Flipo/rules/22697263) `main-prot
 2. Testes de serviço (JUnit + Mockito) para regra de negócio não trivial.
 3. Nenhuma decisão da lista "Decisões de produto já fechadas" (`CLAUDE.md`) violada.
 4. Nenhum endpoint novo devolve dado de outro usuário nem uma chave de API em texto puro.
-5. Caixa correspondente marcada neste arquivo.
+5. Issue fechada como `completed` e Project Status = `Done` (ver skill `github-project`).
 6. Documentação (`docs/0x-*.md`) atualizada se o contrato mudou.

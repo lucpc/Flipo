@@ -9,8 +9,10 @@ relacionada ao tema que cobrem.
 - `docs/02-modelo-de-dados.md` — schema do banco (entidades, campos, relacionamentos)
 - `docs/03-contrato-api.md` — endpoints REST (request/response)
 - `docs/04-arquitetura-tecnica.md` — stack, estratégia de IA, segurança
-- `docs/Backlog.md` — o que já foi feito, o que falta, convenções de branch/PR/DoD (fonte da
-  verdade sobre o estado do projeto — atualize a caixa correspondente ao fechar uma tarefa)
+- `docs/Backlog.md` — roadmap por épico e convenções de branch/PR/commit/DoD. O estado
+  tarefa-a-tarefa vive nas [GitHub Issues](https://github.com/lucpc/Flipo/issues) e no
+  [Project board](https://github.com/users/lucpc/projects/1) — `docs/Backlog.md` não duplica
+  checkbox por tarefa, só linka o milestone de cada épico, pra não ter duas fontes divergindo
 
 ## Agentes do projeto — delegar sempre que possível
 
@@ -23,7 +25,8 @@ fechadas + regras de segurança, resumidas dessa mesma forma para não precisar 
 |---|---|
 | `backend-java` | Entidades JPA, migrations, controllers, serviços, testes do backend |
 | `frontend-react` | Telas, navegação, integração com a API, testes do frontend |
-| `code-reviewer` | Revisão final independente antes de marcar uma tarefa do `docs/Backlog.md` como concluída |
+| `code-reviewer` | Revisão final independente antes de marcar uma issue como concluída |
+| `github-project` | Ler/mover issues no board, abrir/fechar issue, status do roadmap ("o que fazer agora?") |
 
 Para uma mudança que atravessa backend e frontend (ex: mudança de contrato de API), alinhe
 `docs/03-contrato-api.md` primeiro e só então delegue cada lado.
@@ -69,6 +72,6 @@ Preservar a paleta Rosé Pine Dawn do protótipo original como tema base do fron
 
 ## Ordem de implementação e definição de pronto
 
-Não duplicado aqui — ver `docs/Backlog.md`, que mantém a ordem por épico como checklist marcável
-e a definição de pronto. Manter uma única fonte evita a lista aqui ficar desatualizada em relação
-ao que já foi de fato implementado.
+Não duplicado aqui — ver `docs/Backlog.md` para a ordem por épico (com link pro milestone de cada
+um) e a definição de pronto. O que está feito/em progresso/pendente tarefa-a-tarefa vive nas
+GitHub Issues (`gh issue list`, ou peça pro agente `github-project`), não neste arquivo.
