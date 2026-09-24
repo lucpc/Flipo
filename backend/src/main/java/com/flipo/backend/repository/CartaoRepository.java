@@ -9,5 +9,7 @@ import java.util.UUID;
 
 public interface CartaoRepository extends JpaRepository<Cartao, UUID> {
 
-	List<Cartao> findByMateriaId(UUID materiaId);
+	// Escopado pelo dono da matéria (via Materia.usuario) — evita que um usuário liste cartões
+	// de uma matéria de outro usuário adivinhando o materiaId.
+	List<Cartao> findByMateriaIdAndMateria_Usuario_Id(UUID materiaId, UUID usuarioId);
 }

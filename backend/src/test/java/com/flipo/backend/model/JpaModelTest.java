@@ -96,8 +96,27 @@ class JpaModelTest {
 		assertThat(cartao.getUltimaRevisao()).isNull();
 		assertThat(cartao.getCriadoEm()).isNotNull();
 
-		List<Cartao> cartoesDaMateria = cartaoRepository.findByMateriaId(materia.getId());
+		List<Cartao> cartoesDaMateria = cartaoRepository
+				.findByMateriaIdAndMateria_Usuario_Id(materia.getId(), usuario.getId());
 		assertThat(cartoesDaMateria).extracting(Cartao::getId).containsExactly(cartao.getId());
+	}
+
+	@Test
+	void findByMateriaIdAndMateriaUsuarioIdNaoRetornaCartaoDeOutroUsuario() {
+		Usuario dono = entityManager.persistAndFlush(novoUsuario(UUID.randomUUID().toString()));
+		Materia materiaDoDono = entityManager.persistAndFlush(new Materia(dono, "Física"));
+		Cartao cartaoDoDono = entityManager.persistAndFlush(
+				new Cartao(materiaDoDono, "pergunta", "resposta", Cartao.ORIGEM_MANUAL));
+
+		Usuario outroUsuario = entityManager.persistAndFlush(novoUsuario(UUID.randomUUID().toString()));
+
+		List<Cartao> paraOutroUsuario = cartaoRepository
+				.findByMateriaIdAndMateria_Usuario_Id(materiaDoDono.getId(), outroUsuario.getId());
+		assertThat(paraOutroUsuario).isEmpty();
+
+		List<Cartao> paraODono = cartaoRepository
+				.findByMateriaIdAndMateria_Usuario_Id(materiaDoDono.getId(), dono.getId());
+		assertThat(paraODono).extracting(Cartao::getId).containsExactly(cartaoDoDono.getId());
 	}
 
 	@Test

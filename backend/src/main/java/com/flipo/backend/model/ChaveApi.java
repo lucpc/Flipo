@@ -34,7 +34,7 @@ public class ChaveApi {
 	@JoinColumn(name = "usuario_id", nullable = false)
 	private Usuario usuario;
 
-	@Column(nullable = false)
+	@Column(nullable = false, length = 50)
 	private String provedor;
 
 	@Column(name = "chave_criptografada", nullable = false, columnDefinition = "text")
