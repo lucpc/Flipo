@@ -3,6 +3,7 @@ package com.flipo.backend.controller;
 import com.flipo.backend.dto.ErrorResponse;
 import com.flipo.backend.service.CredenciaisInvalidasException;
 import com.flipo.backend.service.EmailJaCadastradoException;
+import com.flipo.backend.service.RecursoNaoEncontradoException;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +28,11 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(CredenciaisInvalidasException.class)
 	public ResponseEntity<ErrorResponse> handleCredenciaisInvalidas(CredenciaisInvalidasException e) {
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ErrorResponse(e.getMessage()));
+	}
+
+	@ExceptionHandler(RecursoNaoEncontradoException.class)
+	public ResponseEntity<ErrorResponse> handleRecursoNaoEncontrado(RecursoNaoEncontradoException e) {
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponse(e.getMessage()));
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
