@@ -1,0 +1,99 @@
+.materias-screen {
+  flex: 1;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  box-sizing: border-box;
+}
+
+.materias-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.materias-header h1 {
+  margin: 0;
+}
+
+.materias-header button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  border: none;
+  background: var(--rp-pine);
+  color: var(--rp-surface);
+  font-weight: 500;
+}
+
+.nova-materia-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--rp-surface);
+  border: 1px solid var(--rp-overlay);
+}
+
+.nova-materia-form label {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--rp-subtle);
+}
+
+.nova-materia-form input {
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--rp-overlay);
+  background: var(--rp-base);
+  color: var(--rp-text);
+}
+
+.nova-materia-form button {
+  padding: 9px 16px;
+  border-radius: 4px;
+  border: none;
+  background: var(--rp-foam);
+  color: var(--rp-surface);
+  font-weight: 500;
+}
+
+.materias-erro {
+  color: var(--rp-rose);
+}
+
+.materias-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.materia-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: var(--rp-surface);
+  border: 1px solid var(--rp-overlay);
+}
+
+.materia-nome {
+  font-weight: 500;
+  color: var(--rp-text);
+}
+
+.materia-contador {
+  font-size: 14px;
+  color: var(--rp-subtle);
+}
