@@ -3,6 +3,8 @@ package com.flipo.backend.repository;
 import com.flipo.backend.model.Cartao;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,4 +20,21 @@ public interface CartaoRepository extends JpaRepository<Cartao, UUID> {
 	// (herdado de JpaRepository, não escopado) quando o acesso depende de posse do usuário
 	// autenticado.
 	Optional<Cartao> findByIdAndMateria_Usuario_Id(UUID id, UUID usuarioId);
+
+	// Uma única query agregada para todas as matérias do usuário (GROUP BY materia + arquivado),
+	// em vez de uma query de contagem por matéria — evita N+1 ao montar GET /api/materias.
+	// Escopado por Materia.usuario, nunca por um materiaId cru vindo de fora.
+	@Query("SELECT c.materia.id AS materiaId, c.arquivado AS arquivado, COUNT(c) AS total "
+			+ "FROM Cartao c WHERE c.materia.usuario.id = :usuarioId "
+			+ "GROUP BY c.materia.id, c.arquivado")
+	List<ContagemPorMateria> contarPorMateriaEArquivadoDoUsuario(@Param("usuarioId") UUID usuarioId);
+
+	/** Projeção do {@code GROUP BY} acima — uma linha por (matéria, arquivado) com o total. */
+	interface ContagemPorMateria {
+		UUID getMateriaId();
+
+		boolean isArquivado();
+
+		long getTotal();
+	}
 }

@@ -1,5 +1,10 @@
 package com.flipo.backend.controller;
 
+import com.flipo.backend.model.Cartao;
+import com.flipo.backend.model.Materia;
+import com.flipo.backend.repository.CartaoRepository;
+import com.flipo.backend.repository.MateriaRepository;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -38,6 +43,12 @@ class MateriaControllerTest {
 	@Autowired
 	private ObjectMapper objectMapper;
 
+	@Autowired
+	private MateriaRepository materiaRepository;
+
+	@Autowired
+	private CartaoRepository cartaoRepository;
+
 	private String emailUnico() {
 		return "usuaria-" + UUID.randomUUID() + "@flipo.test";
 	}
@@ -69,6 +80,14 @@ class MateriaControllerTest {
 				.andReturn();
 		JsonNode corpo = objectMapper.readTree(resultado.getResponse().getContentAsString());
 		return corpo.get("id").asText();
+	}
+
+	/** Persiste um cartão direto pelo repositório — {@code POST .../cartoes} é Épico 3, ainda não existe. */
+	private void criarCartao(String materiaId, boolean arquivado) {
+		Materia materia = materiaRepository.getReferenceById(UUID.fromString(materiaId));
+		Cartao cartao = new Cartao(materia, "pergunta", "resposta", Cartao.ORIGEM_MANUAL);
+		cartao.setArquivado(arquivado);
+		cartaoRepository.save(cartao);
 	}
 
 	@Test
@@ -179,6 +198,52 @@ class MateriaControllerTest {
 		mockMvc.perform(delete("/api/materias/" + UUID.randomUUID())
 				.header("Authorization", "Bearer " + token))
 				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void listarDevolveTotalAtivosETotalArquivadosZeroParaMateriaSemCartoes() throws Exception {
+		String token = registrarEObterToken();
+		criarMateria(token, "Matéria sem cartões");
+
+		mockMvc.perform(get("/api/materias")
+				.header("Authorization", "Bearer " + token))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].totalAtivos").value(0))
+				.andExpect(jsonPath("$[0].totalArquivados").value(0));
+	}
+
+	@Test
+	void listarDevolveTotalAtivosETotalArquivadosContandoOsCartoesDaMateria() throws Exception {
+		String token = registrarEObterToken();
+		String materiaId = criarMateria(token, "Matéria com cartões");
+		criarCartao(materiaId, false);
+		criarCartao(materiaId, false);
+		criarCartao(materiaId, true);
+
+		mockMvc.perform(get("/api/materias")
+				.header("Authorization", "Bearer " + token))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].totalAtivos").value(2))
+				.andExpect(jsonPath("$[0].totalArquivados").value(1));
+	}
+
+	@Test
+	void listarNaoSomaCartoesDeMateriaDeOutroUsuarioNaContagem() throws Exception {
+		String tokenA = registrarEObterToken();
+		String tokenB = registrarEObterToken();
+		String materiaA = criarMateria(tokenA, "Matéria da usuária A");
+		String materiaB = criarMateria(tokenB, "Matéria da usuária B");
+		criarCartao(materiaA, false);
+		criarCartao(materiaB, false);
+		criarCartao(materiaB, false);
+		criarCartao(materiaB, true);
+
+		mockMvc.perform(get("/api/materias")
+				.header("Authorization", "Bearer " + tokenA))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].totalAtivos").value(1))
+				.andExpect(jsonPath("$[0].totalArquivados").value(0));
 	}
 
 	private record RegistroBody(String nome, String email, String senha) {

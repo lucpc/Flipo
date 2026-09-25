@@ -2,12 +2,16 @@ package com.flipo.backend.service;
 
 import com.flipo.backend.model.Materia;
 import com.flipo.backend.model.Usuario;
+import com.flipo.backend.repository.CartaoRepository;
+import com.flipo.backend.repository.CartaoRepository.ContagemPorMateria;
 import com.flipo.backend.repository.MateriaRepository;
 import com.flipo.backend.repository.UsuarioRepository;
 
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -21,10 +25,15 @@ public class MateriaService {
 
 	private final MateriaRepository materiaRepository;
 	private final UsuarioRepository usuarioRepository;
+	private final CartaoRepository cartaoRepository;
 
-	public MateriaService(MateriaRepository materiaRepository, UsuarioRepository usuarioRepository) {
+	public MateriaService(
+			MateriaRepository materiaRepository,
+			UsuarioRepository usuarioRepository,
+			CartaoRepository cartaoRepository) {
 		this.materiaRepository = materiaRepository;
 		this.usuarioRepository = usuarioRepository;
+		this.cartaoRepository = cartaoRepository;
 	}
 
 	/**
@@ -37,9 +46,32 @@ public class MateriaService {
 				.orElseThrow(RecursoNaoEncontradoException::new);
 	}
 
-	/** Lista todas as matérias de {@code usuarioId}. */
-	public List<Materia> listarPorUsuario(UUID usuarioId) {
-		return materiaRepository.findByUsuarioId(usuarioId);
+	/**
+	 * Lista todas as matérias de {@code usuarioId}, cada uma com sua contagem de cartões ativos e
+	 * arquivados. As contagens vêm de uma única query agregada ({@link CartaoRepository
+	 * #contarPorMateriaEArquivadoDoUsuario}) combinada em memória com a lista de matérias — custo
+	 * de duas queries no total, não uma por matéria (sem N+1). Matérias sem cartão de um dos dois
+	 * tipos (ou de nenhum) aparecem com contagem 0, não são omitidas.
+	 */
+	public List<MateriaComContagem> listarPorUsuario(UUID usuarioId) {
+		List<Materia> materias = materiaRepository.findByUsuarioId(usuarioId);
+
+		Map<UUID, long[]> contagensPorMateria = new HashMap<>();
+		for (ContagemPorMateria contagem : cartaoRepository.contarPorMateriaEArquivadoDoUsuario(usuarioId)) {
+			long[] par = contagensPorMateria.computeIfAbsent(contagem.getMateriaId(), id -> new long[2]);
+			if (contagem.isArquivado()) {
+				par[1] = contagem.getTotal();
+			} else {
+				par[0] = contagem.getTotal();
+			}
+		}
+
+		return materias.stream()
+				.map(materia -> {
+					long[] par = contagensPorMateria.getOrDefault(materia.getId(), new long[2]);
+					return new MateriaComContagem(materia, par[0], par[1]);
+				})
+				.toList();
 	}
 
 	/**
@@ -63,5 +95,9 @@ public class MateriaService {
 	public void remover(UUID materiaId, UUID usuarioId) {
 		Materia materia = buscarPorIdEUsuario(materiaId, usuarioId);
 		materiaRepository.delete(materia);
+	}
+
+	/** Uma {@link Materia} com sua contagem de cartões ativos e arquivados — ver {@link #listarPorUsuario}. */
+	public record MateriaComContagem(Materia materia, long totalAtivos, long totalArquivados) {
 	}
 }
