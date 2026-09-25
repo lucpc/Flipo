@@ -120,6 +120,36 @@ class JpaModelTest {
 	}
 
 	@Test
+	void findByIdAndUsuarioIdDevolveMateriaSoParaODonoENaoParaOutroUsuario() {
+		Usuario dono = entityManager.persistAndFlush(novoUsuario(UUID.randomUUID().toString()));
+		Materia materiaDoDono = entityManager.persistAndFlush(new Materia(dono, "Química"));
+		Usuario outroUsuario = entityManager.persistAndFlush(novoUsuario(UUID.randomUUID().toString()));
+
+		assertThat(materiaRepository.findByIdAndUsuarioId(materiaDoDono.getId(), dono.getId()))
+				.contains(materiaDoDono);
+		assertThat(materiaRepository.findByIdAndUsuarioId(materiaDoDono.getId(), outroUsuario.getId()))
+				.isEmpty();
+		assertThat(materiaRepository.findByIdAndUsuarioId(UUID.randomUUID(), dono.getId())).isEmpty();
+	}
+
+	@Test
+	void findByIdAndMateriaUsuarioIdDevolveCartaoSoParaODonoDaMateriaENaoParaOutroUsuario() {
+		Usuario dono = entityManager.persistAndFlush(novoUsuario(UUID.randomUUID().toString()));
+		Materia materiaDoDono = entityManager.persistAndFlush(new Materia(dono, "Física"));
+		Cartao cartaoDoDono = entityManager.persistAndFlush(
+				new Cartao(materiaDoDono, "pergunta", "resposta", Cartao.ORIGEM_MANUAL));
+		Usuario outroUsuario = entityManager.persistAndFlush(novoUsuario(UUID.randomUUID().toString()));
+
+		assertThat(cartaoRepository.findByIdAndMateria_Usuario_Id(cartaoDoDono.getId(), dono.getId()))
+				.contains(cartaoDoDono);
+		assertThat(cartaoRepository
+				.findByIdAndMateria_Usuario_Id(cartaoDoDono.getId(), outroUsuario.getId()))
+				.isEmpty();
+		assertThat(cartaoRepository.findByIdAndMateria_Usuario_Id(UUID.randomUUID(), dono.getId()))
+				.isEmpty();
+	}
+
+	@Test
 	void rejeitaOrigemForaDoConjuntoPermitidoPelaCheckConstraint() {
 		Usuario usuario = entityManager.persistAndFlush(novoUsuario(UUID.randomUUID().toString()));
 		Materia materia = entityManager.persistAndFlush(new Materia(usuario, "Geografia"));
