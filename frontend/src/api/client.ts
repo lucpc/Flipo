@@ -65,7 +65,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export interface Materia {
-  id: number
+  id: string
   nome: string
   totalAtivos: number
   totalArquivados: number

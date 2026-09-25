@@ -100,7 +100,11 @@ export function MateriasScreen({ onUnauthorized }: MateriasScreenProps) {
             <li key={materia.id} className="materia-item">
               <span className="materia-nome">{materia.nome}</span>
               <span className="materia-contador">
-                {materia.totalAtivos > 0 ? `${materia.totalAtivos} ativos` : 'tudo arquivado'}
+                {materia.totalAtivos > 0
+                  ? `${materia.totalAtivos} ativos`
+                  : materia.totalArquivados > 0
+                    ? 'tudo arquivado'
+                    : 'sem cartões ainda'}
               </span>
             </li>
           ))}
