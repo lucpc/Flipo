@@ -25,7 +25,9 @@ GET /api/materias
 
 POST /api/materias
 Body: { "nome" }
-201 → { "id", "nome" }
+201 → { "id", "nome", "totalAtivos", "totalArquivados" }
+// totais sempre 0 — matéria recém-criada ainda não tem cartões. Mesmo DTO do GET, por
+// simplicidade (um único formato de matéria na API em vez de um schema reduzido só pro POST).
 
 DELETE /api/materias/{id}
 204

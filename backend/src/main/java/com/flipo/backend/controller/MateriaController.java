@@ -4,6 +4,7 @@ import com.flipo.backend.dto.MateriaRequest;
 import com.flipo.backend.dto.MateriaResponse;
 import com.flipo.backend.model.Materia;
 import com.flipo.backend.service.MateriaService;
+import com.flipo.backend.service.MateriaService.MateriaComContagem;
 
 import jakarta.validation.Valid;
 
@@ -44,6 +45,13 @@ public class MateriaController {
 				.toList();
 	}
 
+	private static MateriaResponse paraResponse(MateriaComContagem materiaComContagem) {
+		Materia materia = materiaComContagem.materia();
+		return new MateriaResponse(
+				materia.getId(), materia.getNome(),
+				materiaComContagem.totalAtivos(), materiaComContagem.totalArquivados());
+	}
+
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	public MateriaResponse criar(
@@ -58,7 +66,8 @@ public class MateriaController {
 		materiaService.remover(id, usuarioId);
 	}
 
+	// Matéria recém-criada não tem cartões ainda — 0/0 sem precisar consultar CartaoRepository.
 	private static MateriaResponse paraResponse(Materia materia) {
-		return new MateriaResponse(materia.getId(), materia.getNome());
+		return new MateriaResponse(materia.getId(), materia.getNome(), 0, 0);
 	}
 }
