@@ -46,14 +46,14 @@ Body: { "pergunta", "resposta" }
 
 PATCH /api/cartoes/{id}
 Body: { "pergunta", "resposta" }
-200 → cartão atualizado
+200 → { "id", "pergunta", "resposta", "origem", "arquivado", "ultimaRevisao" }
 // edição de conteúdo apenas — não altera o campo arquivado
 
 PATCH /api/cartoes/{id}/arquivar
-200 → { "id", "arquivado": true }
+200 → { "id", "pergunta", "resposta", "origem", "arquivado": true, "ultimaRevisao" }
 
 PATCH /api/cartoes/{id}/desarquivar
-200 → { "id", "arquivado": false }
+200 → { "id", "pergunta", "resposta", "origem", "arquivado": false, "ultimaRevisao" }
 
 DELETE /api/cartoes/{id}
 204
@@ -61,7 +61,10 @@ DELETE /api/cartoes/{id}
 
 `arquivar`/`desarquivar` são endpoints próprios, separados do `PATCH` genérico de conteúdo —
 mantém a edição de texto semanticamente separada da ação de arquivar, o que facilita registrar
-essas ações como eventos distintos se um histórico de atividade for adicionado no futuro.
+essas ações como eventos distintos se um histórico de atividade for adicionado no futuro. Os três
+devolvem o mesmo `CartaoResponse` completo do `GET`/`POST` (em vez de um schema reduzido só pra
+`arquivar`/`desarquivar`) pelo mesmo critério já adotado em `POST /api/materias`: um único formato
+de recurso na API é mais simples do que um schema mínimo por endpoint.
 
 ## Geração de cartões por IA
 
