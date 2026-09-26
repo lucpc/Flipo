@@ -44,6 +44,8 @@ export function RevisaoScreen({ materia, itensIniciais, onUnauthorized, onSair }
     setEditandoId(null)
   }
 
+  // Itens nem aceitos nem descartados explicitamente também não são persistidos —
+  // "confirmar" só grava o que foi aceito, o resto fica pra trás silenciosamente.
   const aceitos = itens.filter((item) => item.aceito)
 
   async function handleConfirmar() {
@@ -129,7 +131,11 @@ export function RevisaoScreen({ materia, itensIniciais, onUnauthorized, onSair }
       )}
 
       <div className="revisao-confirmar">
-        <button type="button" disabled={aceitos.length === 0 || salvando} onClick={handleConfirmar}>
+        <button
+          type="button"
+          disabled={aceitos.length === 0 || salvando || editandoId !== null}
+          onClick={handleConfirmar}
+        >
           {salvando ? 'Salvando...' : `Confirmar revisão (${aceitos.length})`}
         </button>
       </div>
