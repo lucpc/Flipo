@@ -1,0 +1,18 @@
+.adicionar-cartao-screen {
+  flex: 1;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  box-sizing: border-box;
+}
+
+.adicionar-cartao-screen h1 {
+  margin: 0 0 8px;
+}
+
+.adicionar-cartao-hint {
+  margin: 0 0 24px;
+  color: var(--rp-subtle);
+  font-size: 14px;
+}
