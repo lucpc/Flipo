@@ -82,7 +82,7 @@ class MateriaControllerTest {
 		return corpo.get("id").asText();
 	}
 
-	/** Persiste um cartão direto pelo repositório — {@code POST .../cartoes} é Épico 3, ainda não existe. */
+	/** Persiste um cartão direto pelo repositório, sem passar pelo endpoint de criação, para manter este teste focado só nas contagens de {@code GET /api/materias}. */
 	private void criarCartao(String materiaId, boolean arquivado) {
 		Materia materia = materiaRepository.getReferenceById(UUID.fromString(materiaId));
 		Cartao cartao = new Cartao(materia, "pergunta", "resposta", Cartao.ORIGEM_MANUAL);
