@@ -82,10 +82,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
   padding: 14px 16px;
   border-radius: 8px;
   background: var(--rp-surface);
   border: 1px solid var(--rp-overlay);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .materia-nome {

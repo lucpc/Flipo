@@ -71,6 +71,15 @@ export interface Materia {
   totalArquivados: number
 }
 
+export interface Cartao {
+  id: string
+  pergunta: string
+  resposta: string
+  origem: string
+  arquivado: boolean
+  ultimaRevisao: string | null
+}
+
 export function login(email: string, senha: string): Promise<{ token: string }> {
   return request('/auth/login', {
     method: 'POST',
@@ -86,5 +95,12 @@ export function criarMateria(nome: string): Promise<Materia> {
   return request('/materias', {
     method: 'POST',
     body: JSON.stringify({ nome }),
+  })
+}
+
+export function criarCartao(materiaId: string, pergunta: string, resposta: string): Promise<Cartao> {
+  return request(`/materias/${materiaId}/cartoes`, {
+    method: 'POST',
+    body: JSON.stringify({ pergunta, resposta }),
   })
 }

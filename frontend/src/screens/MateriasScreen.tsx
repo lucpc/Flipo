@@ -4,9 +4,10 @@ import './MateriasScreen.css'
 
 interface MateriasScreenProps {
   onUnauthorized: () => void
+  onSelecionarMateria: (materia: Materia) => void
 }
 
-export function MateriasScreen({ onUnauthorized }: MateriasScreenProps) {
+export function MateriasScreen({ onUnauthorized, onSelecionarMateria }: MateriasScreenProps) {
   const [materias, setMaterias] = useState<Materia[] | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
@@ -97,15 +98,21 @@ export function MateriasScreen({ onUnauthorized }: MateriasScreenProps) {
       {materias !== null && materias.length > 0 && (
         <ul className="materias-lista">
           {materias.map((materia) => (
-            <li key={materia.id} className="materia-item">
-              <span className="materia-nome">{materia.nome}</span>
-              <span className="materia-contador">
-                {materia.totalAtivos > 0
-                  ? `${materia.totalAtivos} ativos`
-                  : materia.totalArquivados > 0
-                    ? 'tudo arquivado'
-                    : 'sem cartões ainda'}
-              </span>
+            <li key={materia.id}>
+              <button
+                type="button"
+                className="materia-item"
+                onClick={() => onSelecionarMateria(materia)}
+              >
+                <span className="materia-nome">{materia.nome}</span>
+                <span className="materia-contador">
+                  {materia.totalAtivos > 0
+                    ? `${materia.totalAtivos} ativos`
+                    : materia.totalArquivados > 0
+                      ? 'tudo arquivado'
+                      : 'sem cartões ainda'}
+                </span>
+              </button>
             </li>
           ))}
         </ul>

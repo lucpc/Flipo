@@ -1,0 +1,52 @@
+.cartao-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cartao-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--rp-subtle);
+}
+
+.cartao-form textarea {
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--rp-overlay);
+  background: var(--rp-base);
+  color: var(--rp-text);
+  font: inherit;
+  min-height: 72px;
+  resize: vertical;
+}
+
+.cartao-form-acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cartao-form-acoes button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  border: none;
+  font-weight: 500;
+}
+
+.cartao-form-acoes button[type='button'] {
+  background: var(--rp-overlay);
+  color: var(--rp-text);
+}
+
+.cartao-form-acoes button[type='submit'] {
+  background: var(--rp-pine);
+  color: var(--rp-surface);
+}
+
+.cartao-form-acoes button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
