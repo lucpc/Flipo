@@ -104,3 +104,26 @@ export function criarCartao(materiaId: string, pergunta: string, resposta: strin
     body: JSON.stringify({ pergunta, resposta }),
   })
 }
+
+export function listarCartoes(materiaId: string, arquivado = false): Promise<Cartao[]> {
+  return request(`/materias/${materiaId}/cartoes?arquivado=${arquivado}`)
+}
+
+export function editarCartao(cartaoId: string, pergunta: string, resposta: string): Promise<Cartao> {
+  return request(`/cartoes/${cartaoId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ pergunta, resposta }),
+  })
+}
+
+export function arquivarCartao(cartaoId: string): Promise<Cartao> {
+  return request(`/cartoes/${cartaoId}/arquivar`, { method: 'PATCH' })
+}
+
+export function desarquivarCartao(cartaoId: string): Promise<Cartao> {
+  return request(`/cartoes/${cartaoId}/desarquivar`, { method: 'PATCH' })
+}
+
+export function excluirCartao(cartaoId: string): Promise<void> {
+  return request(`/cartoes/${cartaoId}`, { method: 'DELETE' })
+}
