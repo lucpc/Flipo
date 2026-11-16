@@ -1,6 +1,7 @@
 import 'package:flipo/main.dart';
 import 'package:flipo/widgets/coluna_central.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -8,7 +9,10 @@ void main() {
     tester.view.physicalSize = tamanho;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
+    // Sem token salvo, o app abre no login.
+    FlutterSecureStorage.setMockInitialValues({});
     await tester.pumpWidget(const FlipoApp());
+    await tester.pumpAndSettle();
   }
 
   // Conteúdo logo abaixo da coluna (a própria ColunaCentral ocupa a tela toda para centralizar).

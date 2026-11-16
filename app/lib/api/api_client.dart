@@ -67,6 +67,30 @@ class ApiClient {
 
   Future<void> limparToken() => _armazenamento.delete(key: _chaveToken);
 
+  Future<bool> temToken() async =>
+      await _armazenamento.read(key: _chaveToken) != null;
+
+  /// Entra com e-mail e senha e guarda o token recebido.
+  Future<void> login(String email, String senha) async {
+    final corpo =
+        await _requisitar(
+              'POST',
+              '/api/auth/login',
+              corpo: {'email': email, 'senha': senha},
+            )
+            as Map<String, dynamic>;
+    await salvarToken(corpo['token'] as String);
+  }
+
+  /// Cria a conta. Não entra: o token vem só do [login].
+  Future<void> registrar(String nome, String email, String senha) async {
+    await _requisitar(
+      'POST',
+      '/api/auth/registro',
+      corpo: {'nome': nome, 'email': email, 'senha': senha},
+    );
+  }
+
   Future<List<Materia>> listarMaterias() async {
     final corpo = await _requisitar('GET', '/api/materias') as List<dynamic>;
     return corpo

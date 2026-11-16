@@ -46,6 +46,21 @@ void main() {
     expect(materias.single.totalArquivados, 2);
   });
 
+  test('login envia e-mail e senha e guarda o token recebido', () async {
+    final api = clientRespondendo(200, '{"token":"jwt-novo"}');
+
+    await api.login('ana@exemplo.com', 'segredo123');
+
+    expect(requisicoes.single.method, 'POST');
+    expect(requisicoes.single.url.path, '/api/auth/login');
+    expect(jsonDecode(requisicoes.single.body), {
+      'email': 'ana@exemplo.com',
+      'senha': 'segredo123',
+    });
+    expect(await armazenamento.read(key: 'flipo_token'), 'jwt-novo');
+    expect(await api.temToken(), isTrue);
+  });
+
   test('barra no fim da baseUrl não duplica a barra do caminho', () async {
     final api = ApiClient(
       baseUrl: 'http://api.teste/',
