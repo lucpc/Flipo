@@ -1,18 +1,18 @@
-# Frontend CI — lint and build the Vite/React app under /frontend.
+# Frontend CI — analyze, test and build (web) the Flutter app under /app.
 
 name: Frontend CI
 
 on:
   # No path filter on pull_request: this workflow's job name is a required
   # status check on main. A path-filtered pull_request trigger means PRs
-  # that don't touch frontend/ never produce this check, and GitHub blocks
+  # that don't touch app/ never produce this check, and GitHub blocks
   # merge forever waiting on a required check that will never report.
   pull_request: {}
   push:
     branches:
       - main
     paths:
-      - 'frontend/**'
+      - 'app/**'
       - '.github/workflows/ci-frontend.yml'
 
 concurrency:
@@ -27,22 +27,25 @@ jobs:
       contents: read
     defaults:
       run:
-        working-directory: frontend
+        working-directory: app
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v5
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          node-version: lts/*
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          channel: stable
+          flutter-version: 3.44.2
+          cache: true
 
-      - name: npm ci
-        run: npm ci
+      - name: flutter pub get
+        run: flutter pub get
 
-      - name: lint
-        run: npm run lint
+      - name: flutter analyze
+        run: flutter analyze
 
-      - name: build
-        run: npm run build
+      - name: flutter test
+        run: flutter test
+
+      - name: flutter build web
+        run: flutter build web
