@@ -46,6 +46,37 @@ void main() {
     expect(materias.single.totalArquivados, 2);
   });
 
+  test('barra no fim da baseUrl não duplica a barra do caminho', () async {
+    final api = ApiClient(
+      baseUrl: 'http://api.teste/',
+      httpClient: MockClient((requisicao) async {
+        requisicoes.add(requisicao);
+        return http.Response('[]', 200);
+      }),
+    );
+
+    await api.listarMaterias();
+
+    expect(requisicoes.single.url.toString(), 'http://api.teste/api/materias');
+  });
+
+  test('401 atrasado não apaga um token salvo depois do envio', () async {
+    late ApiClient api;
+    api = ApiClient(
+      baseUrl: 'http://api.teste',
+      aoExpirarSessao: () => sessoesExpiradas++,
+      httpClient: MockClient((requisicao) async {
+        await api.salvarToken('jwt-novo');
+        return http.Response('', 401);
+      }),
+    );
+    await api.salvarToken('jwt-vencido');
+
+    await expectLater(api.listarMaterias(), throwsA(isA<ApiException>()));
+    expect(await armazenamento.read(key: 'flipo_token'), 'jwt-novo');
+    expect(sessoesExpiradas, 0);
+  });
+
   test('sem token salvo, não envia Authorization', () async {
     final api = clientRespondendo(200, '[]');
 

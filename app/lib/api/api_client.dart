@@ -49,9 +49,11 @@ class ApiClient {
   ApiClient({
     http.Client? httpClient,
     this._armazenamento = const FlutterSecureStorage(),
-    this.baseUrl = apiUrlPadrao,
+    String baseUrl = apiUrlPadrao,
     this.aoExpirarSessao,
-  }) : _http = httpClient ?? http.Client();
+  }) : _http = httpClient ?? http.Client(),
+       // Sem a barra final: `$baseUrl$caminho` geraria `//api/...`, que o Spring recusa.
+       baseUrl = baseUrl.replaceFirst(RegExp(r'/+$'), '');
 
   static const _chaveToken = 'flipo_token';
 
@@ -92,10 +94,14 @@ class ApiClient {
     );
     final texto = resposta.body;
 
-    if (resposta.statusCode == 401) {
+    // Sem token enviado (ex.: login com senha errada) não havia sessão para expirar. Se o token
+    // salvo mudou enquanto a requisição voltava (novo login, ou outro 401 já tratou), o 401 é de
+    // uma sessão que não existe mais e não mexe na atual.
+    if (resposta.statusCode == 401 &&
+        token != null &&
+        await _armazenamento.read(key: _chaveToken) == token) {
       await limparToken();
-      // Sem token enviado (ex.: login com senha errada) não havia sessão para expirar.
-      if (token != null) aoExpirarSessao?.call();
+      aoExpirarSessao?.call();
     }
     if (resposta.statusCode < 200 || resposta.statusCode >= 300) {
       throw ApiException(
