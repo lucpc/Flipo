@@ -12,7 +12,10 @@ abstract final class _RosePineDawn {
   static const pine = Color.fromARGB(255, 40, 105, 131);
   static const foam = Color.fromARGB(255, 86, 148, 159);
   static const iris = Color.fromARGB(255, 144, 122, 169);
-  static const rose = Color.fromARGB(255, 215, 130, 126);
+  static const love = Color.fromARGB(255, 180, 99, 122);
+  // Love escurecido só para texto pequeno de erro: o love puro tem contraste 4,0:1 sobre
+  // surface, abaixo dos 4,5:1 pedidos para texto pequeno; este tem 5,7:1.
+  static const loveTexto = Color.fromARGB(255, 154, 74, 98);
   static const highlightMed = Color.fromARGB(255, 223, 218, 217);
 }
 
@@ -25,7 +28,10 @@ const _esquemaDeCores = ColorScheme(
   // Íris: borda do cartão na revisão do Arquivo (docs/01-fluxos-de-usuario.md, seção 7).
   tertiary: _RosePineDawn.iris,
   onTertiary: _RosePineDawn.surface,
-  error: _RosePineDawn.rose,
+  // Love, o vermelho da paleta: erro e ação destrutiva (ex: "Excluir"). O rose (acento suave na
+  // doc) tem contraste baixo demais (2,7:1) para sinalizar erro e entra aqui quando alguma tela
+  // precisar dele.
+  error: _RosePineDawn.love,
   onError: _RosePineDawn.surface,
   surface: _RosePineDawn.surface,
   onSurface: _RosePineDawn.text,
@@ -45,5 +51,8 @@ final ThemeData temaFlipo = ThemeData(
   appBarTheme: const AppBarTheme(
     backgroundColor: _RosePineDawn.base,
     foregroundColor: _RosePineDawn.text,
+  ),
+  inputDecorationTheme: const InputDecorationTheme(
+    errorStyle: TextStyle(color: _RosePineDawn.loveTexto),
   ),
 );
