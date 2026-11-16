@@ -92,3 +92,9 @@ devolve só o provedor, nunca a chave).
 - No app, o JWT fica em armazenamento seguro do sistema (`flutter_secure_storage`: Keychain no
   iOS, Keystore no Android), nunca em preferências comuns.
 - Excluir a conta apaga de fato todos os dados do usuário, inclusive as chaves de API.
+- CORS liberado só para as origens da configuração (`flipo.cors.allowed-origin-patterns`, variável
+  de ambiente `CORS_ALLOWED_ORIGIN_PATTERNS`): `http://localhost:[*]` em desenvolvimento (`[*]`
+  aceita qualquer porta, mas não origens parecidas como `http://localhost:1@evil.com`) e, em
+  produção, o domínio exato do deploy web do app. Nunca um curinga como `https://*.vercel.app`,
+  que aceitaria qualquer site hospedado na Vercel. Sem `allowCredentials`, porque o JWT vai no
+  cabeçalho.
