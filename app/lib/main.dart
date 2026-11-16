@@ -25,11 +25,12 @@ class FlipoApp extends StatefulWidget {
 
 class _FlipoAppState extends State<FlipoApp> {
   final _navegador = GlobalKey<NavigatorState>();
+  final _mensageiro = GlobalKey<ScaffoldMessengerState>();
   // null enquanto o token salvo ainda está sendo lido.
   final _logado = ValueNotifier<bool?>(null);
   late final _api = ApiClient(
     httpClient: widget.httpClient,
-    aoExpirarSessao: () => _mudarSessao(false),
+    aoExpirarSessao: _expirarSessao,
   );
 
   @override
@@ -48,13 +49,27 @@ class _FlipoAppState extends State<FlipoApp> {
   }
 
   void _mudarSessao(bool logado) {
+    if (!mounted) return;
     _navegador.currentState?.popUntil((rota) => rota.isFirst);
+    _mensageiro.currentState?.removeCurrentSnackBar();
     _logado.value = logado;
   }
 
-  Future<void> _sair() async {
-    await _api.limparToken();
+  // Só no 401; "Sair" volta ao login sem aviso.
+  void _expirarSessao() {
     _mudarSessao(false);
+    _mensageiro.currentState?.showSnackBar(
+      const SnackBar(content: Text('Sua sessão expirou. Entre de novo.')),
+    );
+  }
+
+  Future<void> _sair() async {
+    // Mesmo se apagar o token falhar, a tela volta ao login (o erro segue para o log).
+    try {
+      await _api.limparToken();
+    } finally {
+      _mudarSessao(false);
+    }
   }
 
   @override
@@ -64,6 +79,7 @@ class _FlipoAppState extends State<FlipoApp> {
       theme: temaFlipo,
       debugShowCheckedModeBanner: false,
       navigatorKey: _navegador,
+      scaffoldMessengerKey: _mensageiro,
       // A troca acontece dentro da rota raiz, que o Navigator mantém: trocar o `home` do
       // MaterialApp não reconstruiria uma rota que já existe.
       home: ValueListenableBuilder<bool?>(

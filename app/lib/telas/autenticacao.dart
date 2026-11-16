@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 import '../api/api_client.dart';
@@ -38,18 +39,24 @@ class _TelaLoginState extends State<TelaLogin> {
       _erro = null;
     });
 
-    final erro = await _erroDe(
-      () => widget.api.login(_email.text.trim(), _senha.text),
-    );
-    if (erro == null) {
-      aoEntrar();
-      return;
-    }
-    if (mounted) {
-      setState(() {
-        _enviando = false;
-        _erro = erro;
-      });
+    String? erro;
+    var entrou = false;
+    try {
+      erro = await _erroDe(
+        () => widget.api.login(_email.text.trim(), _senha.text),
+      );
+      if (erro == null) {
+        _entrouCom(aoEntrar);
+        entrou = true;
+      }
+    } finally {
+      // Depois de entrar, o botão segue carregando enquanto a tela sai.
+      if (mounted && !entrou) {
+        setState(() {
+          _enviando = false;
+          _erro = erro;
+        });
+      }
     }
   }
 
@@ -73,51 +80,55 @@ class _TelaLoginState extends State<TelaLogin> {
               padding: const EdgeInsets.all(24),
               child: Form(
                 key: _formulario,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'Flipo',
-                      textAlign: TextAlign.center,
-                      style: tema.textTheme.displaySmall?.copyWith(
-                        color: tema.colorScheme.primary,
+                child: AutofillGroup(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Flipo',
+                        textAlign: TextAlign.center,
+                        style: tema.textTheme.displaySmall?.copyWith(
+                          color: tema.colorScheme.primary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'flashcards livres, no seu ritmo',
-                      textAlign: TextAlign.center,
-                      style: tema.textTheme.bodyLarge?.copyWith(
-                        color: tema.colorScheme.onSurfaceVariant,
+                      const SizedBox(height: 8),
+                      Text(
+                        'flashcards livres, no seu ritmo',
+                        textAlign: TextAlign.center,
+                        style: tema.textTheme.bodyLarge?.copyWith(
+                          color: tema.colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 40),
-                    _CampoEmail(controlador: _email),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _senha,
-                      decoration: const InputDecoration(labelText: 'Senha'),
-                      obscureText: true,
-                      autofillHints: const [AutofillHints.password],
-                      textInputAction: TextInputAction.done,
-                      onFieldSubmitted: (_) => _entrar(),
-                      validator: (valor) => (valor == null || valor.isEmpty)
-                          ? 'Informe a senha.'
-                          : null,
-                    ),
-                    _MensagemDeErro(_erro),
-                    const SizedBox(height: 24),
-                    _BotaoEnviar(
-                      rotulo: 'Entrar',
-                      enviando: _enviando,
-                      aoPressionar: _entrar,
-                    ),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: _enviando ? null : _abrirCriarConta,
-                      child: const Text('Criar conta'),
-                    ),
-                  ],
+                      const SizedBox(height: 40),
+                      // O LoginRequest do backend só exige e-mail preenchido.
+                      _CampoEmail(controlador: _email, validarFormato: false),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _senha,
+                        decoration: const InputDecoration(labelText: 'Senha'),
+                        obscureText: true,
+                        autofillHints: const [AutofillHints.password],
+                        textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) => _entrar(),
+                        validator: (valor) =>
+                            (valor == null || valor.trim().isEmpty)
+                            ? 'Informe a senha.'
+                            : null,
+                      ),
+                      _MensagemDeErro(_erro),
+                      const SizedBox(height: 24),
+                      _BotaoEnviar(
+                        rotulo: 'Entrar',
+                        enviando: _enviando,
+                        aoPressionar: _entrar,
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: _enviando ? null : _abrirCriarConta,
+                        child: const Text('Criar conta'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -171,30 +182,37 @@ class _TelaCriarContaState extends State<TelaCriarConta> {
       _erro = null;
     });
 
-    var erro = await _erroDe(
-      () => api.registrar(_nome.text.trim(), email, senha),
-    );
-    if (erro == null) {
-      erro = await _erroDe(() => api.login(email, senha));
+    String? erro;
+    var entrou = false;
+    try {
+      erro = await _erroDe(
+        () => api.registrar(_nome.text.trim(), email, senha),
+      );
       if (erro == null) {
-        aoEntrar();
-        return;
+        erro = await _erroDe(() => api.login(email, senha));
+        if (erro == null) {
+          _entrouCom(aoEntrar);
+          entrou = true;
+        } else {
+          // Tentar de novo aqui daria "E-mail já cadastrado": a conta existe, falta só entrar.
+          erro =
+              'Conta criada, mas não deu para entrar agora. '
+              'Volte e entre com seu e-mail e senha.';
+        }
       }
-      // Tentar de novo aqui daria "E-mail já cadastrado": a conta existe, falta só entrar.
-      erro =
-          'Conta criada, mas não deu para entrar agora. '
-          'Volte e entre com seu e-mail e senha.';
-    }
-    if (mounted) {
-      setState(() {
-        _enviando = false;
-        _erro = erro;
-      });
+    } finally {
+      // Depois de entrar, o botão segue carregando enquanto a tela sai.
+      if (mounted && !entrou) {
+        setState(() {
+          _enviando = false;
+          _erro = erro;
+        });
+      }
     }
   }
 
   String? _validarSenha(String? valor) {
-    if (valor == null || valor.isEmpty) return 'Informe a senha.';
+    if (valor == null || valor.trim().isEmpty) return 'Informe a senha.';
     if (valor.length < _senhaMinima) {
       return 'A senha precisa ter pelo menos $_senhaMinima caracteres.';
     }
@@ -214,43 +232,49 @@ class _TelaCriarContaState extends State<TelaCriarConta> {
             padding: const EdgeInsets.all(24),
             child: Form(
               key: _formulario,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  TextFormField(
-                    controller: _nome,
-                    decoration: const InputDecoration(labelText: 'Nome'),
-                    textCapitalization: TextCapitalization.words,
-                    autofillHints: const [AutofillHints.name],
-                    textInputAction: TextInputAction.next,
-                    validator: (valor) =>
-                        (valor == null || valor.trim().isEmpty)
-                        ? 'Informe seu nome.'
-                        : null,
-                  ),
-                  const SizedBox(height: 16),
-                  _CampoEmail(controlador: _email),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _senha,
-                    decoration: const InputDecoration(
-                      labelText: 'Senha',
-                      helperText: 'Pelo menos $_senhaMinima caracteres',
+              child: AutofillGroup(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextFormField(
+                      controller: _nome,
+                      decoration: const InputDecoration(labelText: 'Nome'),
+                      textCapitalization: TextCapitalization.words,
+                      autofillHints: const [AutofillHints.name],
+                      textInputAction: TextInputAction.next,
+                      validator: (valor) {
+                        final nome = valor?.trim() ?? '';
+                        if (nome.isEmpty) return 'Informe seu nome.';
+                        if (nome.length > _tamanhoMaximo) {
+                          return 'O nome pode ter no máximo $_tamanhoMaximo caracteres.';
+                        }
+                        return null;
+                      },
                     ),
-                    obscureText: true,
-                    autofillHints: const [AutofillHints.newPassword],
-                    textInputAction: TextInputAction.done,
-                    onFieldSubmitted: (_) => _criarConta(),
-                    validator: _validarSenha,
-                  ),
-                  _MensagemDeErro(_erro),
-                  const SizedBox(height: 24),
-                  _BotaoEnviar(
-                    rotulo: 'Criar conta',
-                    enviando: _enviando,
-                    aoPressionar: _criarConta,
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    _CampoEmail(controlador: _email, validarFormato: true),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _senha,
+                      decoration: const InputDecoration(
+                        labelText: 'Senha',
+                        helperText: 'Pelo menos $_senhaMinima caracteres',
+                      ),
+                      obscureText: true,
+                      autofillHints: const [AutofillHints.newPassword],
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => _criarConta(),
+                      validator: _validarSenha,
+                    ),
+                    _MensagemDeErro(_erro),
+                    const SizedBox(height: 24),
+                    _BotaoEnviar(
+                      rotulo: 'Criar conta',
+                      enviando: _enviando,
+                      aoPressionar: _criarConta,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -269,17 +293,33 @@ Future<String?> _erroDe(Future<void> Function() acao) async {
     return e.mensagem;
   } on http.ClientException {
     return 'Não foi possível conectar ao servidor.';
+  } catch (_) {
+    // Ex.: falha de TLS, resposta que não é JSON, erro do armazenamento seguro. Sem isto, o botão
+    // ficaria carregando para sempre.
+    return 'Algo deu errado. Tente de novo.';
   }
 }
+
+/// Pede ao sistema para oferecer salvar e-mail e senha no gerenciador de senhas, e entra.
+void _entrouCom(VoidCallback aoEntrar) {
+  TextInput.finishAutofillContext();
+  aoEntrar();
+}
+
+// Limite de nome e e-mail no RegistroRequest do backend.
+const _tamanhoMaximo = 255;
 
 // Forma básica (algo@algo.algo). A validação de verdade é a do backend, cuja mensagem aparece em
 // _MensagemDeErro.
 final _formatoDeEmail = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
 class _CampoEmail extends StatelessWidget {
-  const _CampoEmail({required this.controlador});
+  const _CampoEmail({required this.controlador, required this.validarFormato});
 
   final TextEditingController controlador;
+
+  /// Forma e tamanho só valem no cadastro; no login, basta o e-mail estar preenchido.
+  final bool validarFormato;
 
   @override
   Widget build(BuildContext context) {
@@ -293,7 +333,11 @@ class _CampoEmail extends StatelessWidget {
       validator: (valor) {
         final email = valor?.trim() ?? '';
         if (email.isEmpty) return 'Informe o e-mail.';
+        if (!validarFormato) return null;
         if (!_formatoDeEmail.hasMatch(email)) return 'E-mail inválido.';
+        if (email.length > _tamanhoMaximo) {
+          return 'O e-mail pode ter no máximo $_tamanhoMaximo caracteres.';
+        }
         return null;
       },
     );

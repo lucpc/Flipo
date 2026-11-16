@@ -72,6 +72,11 @@ void main() {
     });
     expect(await armazenamento.read(key: 'flipo_token'), 'jwt-ana');
     expect(areaLogada, findsOneWidget);
+    // O gerenciador de senhas é convidado a salvar as credenciais.
+    expect(
+      tester.testTextInput.log.map((chamada) => chamada.method),
+      contains('TextInput.finishAutofillContext'),
+    );
   });
 
   testWidgets('"concluído" no teclado, na senha, também entra', (tester) async {
@@ -102,9 +107,8 @@ void main() {
     expect(await armazenamento.read(key: 'flipo_token'), isNull);
   });
 
-  testWidgets('campos vazios ou e-mail malformado não chegam ao backend', (
-    tester,
-  ) async {
+  testWidgets('login com campo vazio (ou senha só de espaços) não chega ao '
+      'backend', (tester) async {
     await abrirApp(tester, {});
 
     await tester.tap(botaoEntrar);
@@ -112,11 +116,33 @@ void main() {
     expect(find.text('Informe o e-mail.'), findsOneWidget);
     expect(find.text('Informe a senha.'), findsOneWidget);
 
-    await tester.enterText(campoEmail, 'ana.exemplo.com');
+    // No login, o formato do e-mail fica com o backend (LoginRequest só tem @NotBlank).
+    await tester.enterText(campoEmail, 'ana');
+    await tester.enterText(campoSenha, '        ');
     await tester.tap(botaoEntrar);
     await tester.pump();
-    expect(find.text('E-mail inválido.'), findsOneWidget);
+    expect(find.text('Informe o e-mail.'), findsNothing);
+    expect(find.text('E-mail inválido.'), findsNothing);
+    expect(find.text('Informe a senha.'), findsOneWidget);
     expect(requisicoes, isEmpty);
+  });
+
+  testWidgets('erro inesperado mostra mensagem e libera o botão', (
+    tester,
+  ) async {
+    await abrirApp(tester, {
+      // 200 com HTML (ex.: um proxy no caminho): jsonDecode lança FormatException.
+      '/api/auth/login': () => http.Response('<html>oi</html>', 200),
+    });
+
+    await preencherLogin(tester);
+    await tester.tap(botaoEntrar);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Algo deu errado. Tente de novo.'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(tester.widget<FilledButton>(botaoEntrar).onPressed, isNotNull);
+    expect(find.byType(TelaLogin), findsOneWidget);
   });
 
   testWidgets('enquanto envia, o botão carrega e não envia de novo', (
@@ -202,23 +228,63 @@ void main() {
     expect(requisicoes.map((r) => r.url.path), ['/api/auth/registro']);
   });
 
-  testWidgets('criar conta pede nome e senha com pelo menos 8 caracteres', (
+  testWidgets('conta criada mas login falhou: avisa e fica no cadastro', (
+    tester,
+  ) async {
+    await abrirApp(tester, {
+      '/api/auth/registro': () =>
+          json(201, {'id': 'u1', 'nome': 'Ana', 'email': 'ana@exemplo.com'}),
+      '/api/auth/login': () => json(500, {'mensagem': 'Erro interno.'}),
+    });
+
+    await tester.tap(find.widgetWithText(TextButton, 'Criar conta'));
+    await tester.pumpAndSettle();
+    await tester.enterText(campoNome, 'Ana');
+    await preencherLogin(tester);
+    await tester.tap(botaoCriarConta);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'Conta criada, mas não deu para entrar agora. '
+        'Volte e entre com seu e-mail e senha.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byType(TelaCriarConta), findsOneWidget);
+    expect(await armazenamento.read(key: 'flipo_token'), isNull);
+  });
+
+  testWidgets('criar conta valida nome, e-mail e senha antes de enviar', (
     tester,
   ) async {
     await abrirApp(tester, {});
 
     await tester.tap(find.widgetWithText(TextButton, 'Criar conta'));
     await tester.pumpAndSettle();
-    await tester.enterText(campoEmail, 'ana@exemplo.com');
+    await tester.enterText(campoEmail, 'ana.exemplo.com');
     await tester.enterText(campoSenha, '1234567');
     await tester.tap(botaoCriarConta);
     await tester.pump();
 
     expect(find.text('Informe seu nome.'), findsOneWidget);
+    expect(find.text('E-mail inválido.'), findsOneWidget);
     expect(
       find.text('A senha precisa ter pelo menos 8 caracteres.'),
       findsOneWidget,
     );
+
+    // Limites do RegistroRequest: nome até 255 e senha que não seja só espaços.
+    await tester.enterText(campoNome, 'a' * 256);
+    await tester.enterText(campoSenha, '        ');
+    await tester.tap(botaoCriarConta);
+    await tester.pump();
+
+    expect(
+      find.text('O nome pode ter no máximo 255 caracteres.'),
+      findsOneWidget,
+    );
+    expect(find.text('Informe a senha.'), findsOneWidget);
     expect(requisicoes, isEmpty);
   });
 
@@ -240,6 +306,7 @@ void main() {
 
     expect(find.byType(TelaLogin), findsOneWidget);
     expect(await armazenamento.read(key: 'flipo_token'), isNull);
+    expect(find.text('Sua sessão expirou. Entre de novo.'), findsNothing);
   });
 
   testWidgets('sessão expirada (401) volta ao login, mesmo com telas abertas '
@@ -264,5 +331,6 @@ void main() {
     expect(find.byType(TelaLogin), findsOneWidget);
     expect(find.text('Matéria'), findsNothing);
     expect(find.byType(BackButton), findsNothing);
+    expect(find.text('Sua sessão expirou. Entre de novo.'), findsOneWidget);
   });
 }
