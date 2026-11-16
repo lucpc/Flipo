@@ -25,7 +25,7 @@
 }
 
 .sessao-cartao-rotulo {
-  color: var(--rp-iris);
+  color: var(--rp-text);
   font-size: 13px;
   font-weight: 500;
   text-transform: uppercase;
@@ -39,7 +39,7 @@
 }
 
 .sessao-cartao-dica {
-  color: var(--rp-muted);
+  color: var(--rp-text);
   font-size: 13px;
 }
 
