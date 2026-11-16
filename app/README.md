@@ -19,3 +19,5 @@ flutter run --dart-define=API_URL=http://10.0.2.2:8080
 - Tema Rosé Pine Dawn: `lib/theme.dart`. Os widgets usam `Theme.of(context)`, nunca cores fixas.
 - Coluna centralizada em telas largas: `lib/widgets/coluna_central.dart`.
 - Client da API (JWT em `flutter_secure_storage`): `lib/api/api_client.dart`.
+- Sessão em `lib/main.dart`: sem token salvo o app abre no login; "Sair" ou um 401 voltam ao
+  login, fechando as telas abertas por cima. Login e Criar conta: `lib/telas/autenticacao.dart`.
