@@ -33,16 +33,18 @@ export function SessaoCartoes({ cartoes, onSair, acoesDoCartao }: SessaoCartoesP
           <button type="button" onClick={onSair}>
             Voltar
           </button>
-          <button
-            type="button"
-            className="sessao-principal"
-            onClick={() => {
-              setIndice(0)
-              setViradoId(null)
-            }}
-          >
-            Recomeçar
-          </button>
+          {cartoes.length > 0 && (
+            <button
+              type="button"
+              className="sessao-principal"
+              onClick={() => {
+                setIndice(0)
+                setViradoId(null)
+              }}
+            >
+              Recomeçar
+            </button>
+          )}
         </div>
       </div>
     )
@@ -60,6 +62,7 @@ export function SessaoCartoes({ cartoes, onSair, acoesDoCartao }: SessaoCartoesP
         <button
           type="button"
           className="sessao-cartao-face"
+          aria-live="polite"
           onClick={() => setViradoId(virado ? null : atual.id)}
         >
           <span className="sessao-cartao-rotulo">{virado ? 'Resposta' : 'Pergunta'}</span>
