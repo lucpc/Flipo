@@ -16,9 +16,10 @@ These were considered and deliberately rejected. Do not reintroduce them as "imp
 - No spaced repetition. No `intervalo`, `fatorFacilidade`, or `proximaRevisao` fields, no due
   dates, no scheduling algorithm.
 - No mandatory per-card self-assessment during study. The study session is passive: flip, advance.
-- No subject-level archive. `arquivado` is a boolean on `Cartao` only, set exclusively through
-  deliberate card edit — never automatically, never during a study session, never as a side
-  effect of a review score.
+- No subject-level archive. `arquivado` is a boolean on `Cartao` only. Archiving happens
+  exclusively through deliberate card edit — never automatically, never during a study session,
+  never as a side effect of a review score. Unarchiving is also always deliberate, and may
+  additionally be done per card inside the Arquivo review (`docs/01-fluxos-de-usuario.md` §7).
 - No artificial limit on subjects per user (the original prototype's `MAX_MATERIAS = 5` is gone).
 - No Rust microservice for text preprocessing.
 

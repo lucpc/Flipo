@@ -2,3 +2,7 @@
 .env
 
 .DS_Store
+
+# Material da disciplina de IU (uso pessoal do autor como projeto de faculdade,
+# não faz parte do produto Flipo em si).
+/faculdade/
