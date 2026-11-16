@@ -41,11 +41,13 @@ reaberta sem motivo forte:
 
 - A sessão de estudo é passiva: vira o cartão, avança para o próximo. Sem perguntar
   "como você se saiu?" a cada cartão.
-- Cada matéria tem uma lista de cartões ativos (padrão, de fácil acesso) e uma lista de cartões
-  arquivados (os que o usuário já considera dominados, de acesso mais discreto).
+- Cada matéria tem uma lista de cartões ativos (padrão, estudados em "Estudar cartões") e um
+  Arquivo com os cartões que o usuário já considera dominados — que pode ser revisado do
+  mesmo jeito, quando o usuário quiser relembrar.
 - Um cartão só é arquivado quando o usuário edita aquele cartão especificamente e escolhe
   "Arquivar" — nunca como resultado de uma resposta durante o estudo.
-- Arquivar é reversível a qualquer momento ("Desarquivar").
+- Arquivar é reversível a qualquer momento ("Desarquivar"), inclusive direto na revisão do
+  Arquivo, cartão a cartão.
 
 Ver `01-fluxos-de-usuario.md` para o detalhamento tela a tela.
 
@@ -77,7 +79,7 @@ RP_HL_MED  (223, 218, 217)   destaque médio
 - Geração de cartões por IA a partir de texto colado ou PDF, com tela de revisão
 - Sessão de estudo simples (virar cartão, avançar)
 - Arquivar/desarquivar cartão via tela de edição
-- Aba de cartões arquivados por matéria
+- Arquivo por matéria: revisão dos cartões arquivados, com "Desarquivar" em cada cartão
 - BYOK (usuário pode configurar a própria chave de API de IA)
 
 **Fora do escopo do MVP (não implementar sem decisão explícita):**

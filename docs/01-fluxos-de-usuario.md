@@ -5,8 +5,9 @@
 ```
 Dashboard
   └─ Lista de matérias
-       └─ Matéria selecionada
-            ├─ Estudar cartões
+       └─ Matéria selecionada  (menu ⋮: Editar matéria · Apagar matéria)
+            ├─ Estudar cartões  (ativos)
+            ├─ Arquivo          (revisão dos arquivados, com "Desarquivar" por cartão)
             └─ Adicionar cartão
                  ├─ Criação manual ──┐
                  └─ Gerar com IA ────┼─→ Revisão → Salvo na matéria (ativos)
@@ -29,11 +30,19 @@ atividade recente). Não bloqueante para o MVP — pode ser simples no início.
 
 ## 3. Matéria selecionada (menu)
 
-Ao abrir uma matéria, o usuário vê três ações:
-- **Estudar cartões** — abre a sessão de estudo (ver seção 5).
+Ao abrir uma matéria, o usuário vê:
+- **Estudar cartões** — entrada principal, com o total de ativos (ex: "6 ativos"). Abre a
+  sessão de estudo (ver seção 5).
+- **Arquivo** — entrada com o mesmo formato, logo abaixo, com o total de arquivados
+  (ex: "2 arquivados"). Abre a revisão dos cartões arquivados (ver seção 7). Sem arquivados,
+  a entrada fica desabilitada com texto neutro ("nenhum arquivado").
 - **Adicionar cartão** — abre a escolha entre manual e IA (ver seção 4).
-- **Apagar matéria** — ação destrutiva, com tela de confirmação (padrão já existente no
-  protótipo original: pergunta "sim/não" antes de excluir).
+
+Ações de gestão da matéria ficam fora do corpo da tela, num menu de três pontos (⋮) no
+cabeçalho, para não dar destaque a uma ação destrutiva:
+- **Editar matéria** — renomear a matéria.
+- **Apagar matéria** — ação destrutiva, separada visualmente das demais no menu, com tela de
+  confirmação (padrão já existente no protótipo original: pergunta "sim/não" antes de excluir).
 
 ## 4. Adicionar cartão
 
@@ -65,9 +74,9 @@ tela de Revisão (seção 4c) com um único cartão pré-carregado.
 
 ## 6. Edição de cartão
 
-Acessível de dois lugares: da sessão de estudo (ícone discreto) e de uma lista de gerenciamento
-de cartões da matéria (fora do escopo detalhado deste documento, mas deve existir como tela
-de apoio).
+Acessível da sessão de estudo e da revisão do Arquivo (ícone discreto nas duas) e de uma
+lista de gerenciamento de cartões da matéria (fora do escopo detalhado deste documento, mas
+deve existir como tela de apoio).
 
 Painel de edição contém:
 - Campo de pergunta (editável)
@@ -76,17 +85,25 @@ Painel de edição contém:
 - Botão "Arquivar" ou "Desarquivar" (dependendo do estado atual do cartão)
 - Botão "Excluir" — remove o cartão permanentemente (idealmente com confirmação)
 
-## 7. Aba de cartões arquivados
+## 7. Arquivo (revisão dos cartões arquivados)
 
-- Dentro da tela da matéria, uma aba separada ("Arquivados") ao lado da lista principal.
-- Lista os cartões com `arquivado = true`.
-- Cada item tem duas ações rápidas: desarquivar (volta para ativos) e excluir.
-- Acesso discreto de propósito — não é uma tela de destaque, é consulta opcional.
+- Acessado pela entrada "Arquivo" na tela da matéria (seção 3), do mesmo jeito que "Estudar
+  cartões".
+- Usa apenas os cartões com `arquivado = true` e funciona como a sessão de estudo: tocar vira
+  o cartão, "Próximo cartão" avança, sem avaliação obrigatória.
+- Cada cartão tem um botão **"Desarquivar este cartão"**, que o devolve para os ativos. O
+  cartão sai do Arquivo e a revisão segue para o próximo.
+- O ícone discreto de edição (seção 6) também está disponível aqui — é por ele que se exclui
+  um cartão arquivado.
+- O Arquivo serve para relembrar de vez em quando o que já foi dominado e trazer de volta o que
+  foi esquecido; o foco do dia a dia continua sendo "Estudar cartões".
 
 ## Decisões de UX que não devem ser reabertas sem justificativa
 
 - Nenhuma tela pede ao usuário para avaliar sua confiança/desempenho em um cartão.
 - Arquivar nunca é automático nem sugerido pelo sistema — é sempre uma ação deliberada do
-  usuário, disparada a partir da edição do cartão.
+  usuário, disparada a partir da edição do cartão. Desarquivar também é sempre deliberado,
+  mas pode ser feito direto na revisão do Arquivo (seção 7), cartão a cartão.
+- Ações de gestão da matéria (editar, apagar) ficam no menu ⋮, nunca como botão de destaque.
 - "Arquivar" se refere ao **cartão**, nunca à matéria (evitar reintroduzir essa ambiguidade
   em nomes de botão ou de endpoint).

@@ -29,6 +29,11 @@ Body: { "nome" }
 // totais sempre 0 — matéria recém-criada ainda não tem cartões. Mesmo DTO do GET, por
 // simplicidade (um único formato de matéria na API em vez de um schema reduzido só pro POST).
 
+PATCH /api/materias/{id}
+Body: { "nome" }
+200 → { "id", "nome", "totalAtivos", "totalArquivados" }
+// "Editar matéria" (menu ⋮ da tela da matéria) — por ora só renomeia.
+
 DELETE /api/materias/{id}
 204
 ```
@@ -37,7 +42,7 @@ DELETE /api/materias/{id}
 
 ```
 GET /api/materias/{materiaId}/cartoes?arquivado=false
-// arquivado é opcional, default false (lista principal). arquivado=true retorna a aba de arquivados.
+// arquivado é opcional, default false (sessão de estudo). arquivado=true alimenta a revisão do Arquivo.
 200 → [{ "id", "pergunta", "resposta", "origem", "arquivado", "ultimaRevisao" }]
 
 POST /api/materias/{materiaId}/cartoes

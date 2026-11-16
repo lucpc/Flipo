@@ -67,7 +67,8 @@ Avaliar Ollama/Groq como cota padrão; parsing tolerante a JSON malformado se ad
 
 ## Épico 8 — Polimento
 
-Paleta Rosé Pine Dawn aplicada em todo o frontend; aba de cartões arquivados por matéria.
+Paleta Rosé Pine Dawn aplicada em todo o frontend; Arquivo por matéria (revisão dos arquivados
+com "Desarquivar" por cartão); menu ⋮ da matéria com editar (`PATCH /materias/{id}`) e apagar.
 [Milestone](https://github.com/lucpc/Flipo/milestone/8) · issues `epic:E8`
 
 ---
