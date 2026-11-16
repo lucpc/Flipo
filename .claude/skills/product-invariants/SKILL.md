@@ -24,6 +24,8 @@ These were considered and deliberately rejected. Do not reintroduce them as "imp
 - No Rust microservice for text preprocessing.
 - No gamification: no streaks, points, badges, "overdue" indicators, or error counters. It
   contradicts the no-pressure study philosophy.
+- No tags beyond the subject, no knowledge graph. `Materia` is the card's only grouping and
+  already acts as a free, user-created tag.
 
 ## AI-generation boundary — never bypass
 

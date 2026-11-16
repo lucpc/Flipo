@@ -84,8 +84,6 @@ o produto tem que ter, e a ordem de implementação segue o produto (ver `Backlo
 - Arquivar/desarquivar cartão via tela de edição
 - Arquivo por matéria: revisão dos cartões arquivados, com "Desarquivar" em cada cartão
 - BYOK (usuário pode configurar a própria chave de API de IA)
-- Tags livres: criadas pelo próprio usuário, sem lista pré-definida (detalhamento de onde a tag
-  vive e o que ela permite ainda a fazer em `01-fluxos-de-usuario.md`)
 
 **Descartado (decisões fechadas — não implementar):**
 - Repetição espaçada com datas/algoritmo tipo SM-2 (foi cogitada e descartada — ver histórico)
@@ -93,10 +91,11 @@ o produto tem que ter, e a ordem de implementação segue o produto (ver `Backlo
   de estudo sem pressão (cenário C6 do relatório de PIU: a ansiedade dos decks "atrasados" é o
   que faz o usuário abandonar outras ferramentas)
 - Microsserviço em Rust (cogitado, descartado por decisão do dono do produto)
+- Tags além da matéria e grafo de conhecimento: a matéria já é a tag do cartão — livre, criada
+  pelo próprio usuário, sem lista pré-definida — e é a única forma de organização
 
 **Em aberto (decidir antes de implementar):**
 - Colaboração/compartilhamento de matérias entre usuários
-- Grafo de conhecimento (visualizar ligações entre matérias além das tags)
 
 ## Documentos relacionados
 

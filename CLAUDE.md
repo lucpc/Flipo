@@ -66,6 +66,8 @@ lacunas a preencher livremente:
 7. **Chaves de API de terceiros nunca em texto puro**, nunca retornadas por endpoint algum.
 8. **Sem gamificação.** Nada de streaks, pontos, crachás de "atrasado" ou contadores de erro —
    contraria o estudo sem pressão.
+9. **A matéria é a única organização do cartão.** Ela já funciona como tag livre criada pelo
+   usuário; sem tags adicionais nem grafo de conhecimento.
 
 ## Identidade visual
 
