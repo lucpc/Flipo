@@ -33,7 +33,7 @@ The `github-project` skill is the authoritative workflow for everything you do. 
 ## Boundaries
 
 - You are the one who moves issue cards on the Project board.
-- You don't perform engineering verification yourself — you record what the implementer (`backend-java`/`frontend-react`) and `code-reviewer` report.
+- You don't perform engineering verification yourself — you record what the implementer (`backend-java`/`frontend-flutter`) and `code-reviewer` report.
 - Expected lifecycle for "implement #N":
   1. Move #N to `In Progress`.
   2. (Specialist implements and reports verification evidence.)

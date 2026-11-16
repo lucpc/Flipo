@@ -33,6 +33,9 @@ Os dois caminhos convergem numa **tela de revisão comum**: nenhum cartão gerad
 Isso preserva o espírito de liberdade do projeto original (o usuário decide, o sistema sugere)
 e ao mesmo tempo demonstra integração de LLM de forma útil, não decorativa.
 
+Nos dois caminhos, criar um cartão tem que ser rápido e levar poucos toques: o estudante não
+pode gastar produzindo o cartão o tempo que poderia estar estudando.
+
 ## Filosofia de revisão: liberdade sem pressão
 
 Ao contrário de Anki/Quizlet, o produto **não impõe prazos de revisão nem exige uma avaliação
@@ -54,7 +57,7 @@ Ver `01-fluxos-de-usuario.md` para o detalhamento tela a tela.
 ## Identidade visual a preservar
 
 A paleta Rosé Pine Dawn do protótipo original deve ser levada para o rebuild como tema base
-(ex: via variáveis de tema no frontend):
+(no app Flutter, via `ThemeData`/`ColorScheme`):
 
 ```
 RP_BASE    (250, 244, 237)   fundo
@@ -76,7 +79,9 @@ O Flipo é planejado como produto final, não como MVP: o que está listado como
 o produto tem que ter, e a ordem de implementação segue o produto (ver `Backlog.md`).
 
 **Incluído:**
+- App para Android e iOS, publicado nas lojas, e versão web — um único app Flutter
 - Cadastro/login de usuário (multi-tenant — cada usuário só vê seus próprios dados)
+- Excluir a própria conta e todos os dados (exigência das lojas de aplicativos)
 - CRUD de matérias
 - CRUD de cartões (manual)
 - Geração de cartões por IA a partir de texto colado ou PDF, com tela de revisão

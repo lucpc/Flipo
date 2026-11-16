@@ -24,7 +24,7 @@ fechadas + regras de segurança, resumidas dessa mesma forma para não precisar 
 | Agente | Quando delegar |
 |---|---|
 | `backend-java` | Entidades JPA, migrations, controllers, serviços, testes do backend |
-| `frontend-react` | Telas, navegação, integração com a API, testes do frontend |
+| `frontend-flutter` | Telas do app Flutter (Android, iOS, web), navegação, integração com a API, testes de widget |
 | `code-reviewer` | Revisão final independente antes de marcar uma issue como concluída |
 | `github-project` | Ler/mover issues no board, abrir/fechar issue, status do roadmap ("o que fazer agora?") |
 
@@ -44,7 +44,8 @@ numa tela de revisão comum antes de qualquer persistência.
 
 - Backend: Java 21, Spring Boot, Spring Data JPA, Spring Security (JWT)
 - Banco: PostgreSQL (Flyway para migrations)
-- Frontend: React + Vite + TypeScript
+- App: Flutter (Dart), um único código para Android, iOS e web, publicado nas lojas. Substituiu
+  o primeiro frontend em React (`frontend/`), que está sendo aposentado (Épico 9)
 - IA: interface `GeradorDeCartoes`, implementação trocável (Ollama/Groq em desenvolvimento,
   Anthropic em produção), com suporte a BYOK (chave própria do usuário)
 
@@ -71,8 +72,9 @@ lacunas a preencher livremente:
 
 ## Identidade visual
 
-Preservar a paleta Rosé Pine Dawn do protótipo original como tema base do frontend — valores em
-`docs/00-visao-geral.md`.
+Preservar a paleta Rosé Pine Dawn do protótipo original como tema base do app — valores em
+`docs/00-visao-geral.md`. As telas seguem o protótipo interativo de PIU no Figma (quadros citados
+em `docs/01-fluxos-de-usuario.md`).
 
 ## Ordem de implementação e definição de pronto
 

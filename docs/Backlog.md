@@ -67,9 +67,19 @@ Avaliar Ollama/Groq como cota padrão; parsing tolerante a JSON malformado se ad
 
 ## Épico 8 — Polimento
 
-Paleta Rosé Pine Dawn aplicada em todo o frontend; Arquivo por matéria (revisão dos arquivados
-com "Desarquivar" por cartão); menu ⋮ da matéria com editar (`PATCH /materias/{id}`) e apagar.
+Arquivo por matéria (revisão dos arquivados com "Desarquivar" por cartão); menu ⋮ da matéria
+com editar (`PATCH /materias/{id}`), gerenciar cartões e apagar.
 [Milestone](https://github.com/lucpc/Flipo/milestone/8) · issues `epic:E8`
+
+## Épico 9 — App Flutter (Android, iOS e web)
+
+O frontend passa de React para um único app Flutter publicado nas lojas e na web
+(`04-arquitetura-tecnica.md`). Esqueleto com a paleta Rosé Pine Dawn e CI, telas já feitas em
+React (login, matérias, matéria, adicionar, revisão, gerenciar cartões) refeitas no Flutter com o
+desenho do protótipo de PIU, Criar conta, tela de Conta com Excluir conta, aposentadoria do
+`frontend/` em React e publicação nas lojas.
+**Ordem:** vem antes do restante do E4 — as telas novas já nascem no Flutter.
+[Milestone](https://github.com/lucpc/Flipo/milestone/9) · issues `epic:E9`
 
 ---
 
@@ -118,8 +128,8 @@ Aplicada via [ruleset](https://github.com/lucpc/Flipo/rules/22697263) `main-prot
 ### Definição de pronto (por tarefa)
 
 1. Endpoint(s)/tela(s) implementados conforme `03-contrato-api.md` / `01-fluxos-de-usuario.md`.
-2. Testes de serviço (JUnit + Mockito) para regra de negócio não trivial, e testes de componente
-   (Vitest + Testing Library) para tela ou componente com interação não trivial.
+2. Testes de serviço (JUnit + Mockito) para regra de negócio não trivial, e testes de widget
+   (`flutter test`) para tela ou componente com interação não trivial.
 3. Nenhuma decisão da lista "Decisões de produto já fechadas" (`CLAUDE.md`) violada.
 4. Nenhum endpoint novo devolve dado de outro usuário nem uma chave de API em texto puro.
 5. Issue fechada como `completed` e Project Status = `Done` (ver skill `github-project`).

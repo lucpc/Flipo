@@ -75,7 +75,7 @@ For "start #7", "work on #7", "implement #7":
    ```bash
    gh project item-edit --id <item-id> --project-id <project-id> --field-id <status-field-id> --single-select-option-id <in-progress-option-id>
    ```
-4. Then begin implementation, delegating to `backend-java`/`frontend-react` per `CLAUDE.md`.
+4. Then begin implementation, delegating to `backend-java`/`frontend-flutter` per `CLAUDE.md`.
 
 Do not add a start comment unless the user asks for one.
 

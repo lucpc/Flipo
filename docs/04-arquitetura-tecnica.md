@@ -10,11 +10,16 @@
 | Validação | Bean Validation (`@NotBlank`, `@Size`, etc.) nos DTOs | |
 | Banco de dados | PostgreSQL | Relacional, modela bem `Usuario → Materia → Cartao` |
 | Hospedagem do banco | Neon ou Railway (Postgres gerenciado) | Free tier, sem manter servidor |
-| Frontend | React + Vite + TypeScript | Backend já resolve API/servidor — não há motivo para Next.js |
+| App (frontend) | Flutter (Dart), um único código para Android, iOS e web | Publicar nas lojas de aplicativos atrai mais usuários; um código só evita implementar cada tela duas vezes |
 | Deploy backend | Render ou Railway (Docker) | Deploy direto do GitHub |
-| Deploy frontend | Vercel ou Netlify | |
+| Distribuição do app | Google Play e App Store; versão web (build web do Flutter) em Vercel ou Netlify | O build e a publicação para iOS exigem macOS — feitos em CI na nuvem (runner macOS do GitHub Actions ou Codemagic), já que o desenvolvimento é em Linux |
+| Testes do app | `flutter test` (testes de widget) | Priorizar a lógica de interação: sessão de estudo, Arquivo, tela de revisão |
 | Testes backend | JUnit 5 + Mockito | Priorizar testes da camada de serviço (regras de arquivar/gerar-ia) |
 | Migrations | Flyway | Versionadas, em vez de `ddl-auto: update` em produção |
+
+O app Flutter substituiu um primeiro frontend em React + Vite + TypeScript, aposentado quando o
+produto passou a mirar as lojas de aplicativos. O backend não mudou: a API REST com JWT atende o
+app em qualquer plataforma.
 
 **Rust foi cogitado e descartado** para um microsserviço de pré-processamento de texto — decisão
 do dono do produto, não reabrir sem justificativa nova.
@@ -28,7 +33,7 @@ controllers ou serviços de negócio:
 
 ```java
 public interface GeradorDeCartoes {
-    List<CartaoSugerido> gerar(String texto, int quantidade);
+    List<CartaoSugerido> gerar(String texto, int quantidade, NivelCartao nivel);
 }
 ```
 
@@ -84,3 +89,6 @@ devolve só o provedor, nunca a chave).
   autenticado.
 - Chaves de API de terceiros criptografadas em repouso.
 - Senha armazenada como hash (ex: BCrypt via Spring Security), nunca em texto puro.
+- No app, o JWT fica em armazenamento seguro do sistema (`flutter_secure_storage`: Keychain no
+  iOS, Keystore no Android), nunca em preferências comuns.
+- Excluir a conta apaga de fato todos os dados do usuário, inclusive as chaves de API.
