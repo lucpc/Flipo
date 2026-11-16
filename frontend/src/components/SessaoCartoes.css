@@ -1,0 +1,78 @@
+.sessao-progresso {
+  margin: 0 0 12px;
+  color: var(--rp-subtle);
+  font-size: 14px;
+}
+
+.sessao-cartao {
+  position: relative;
+}
+
+.sessao-cartao-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 240px;
+  padding: 32px 24px;
+  border-radius: 8px;
+  border: 1px solid var(--rp-overlay);
+  background: var(--rp-surface);
+  color: var(--rp-text);
+  text-align: center;
+}
+
+.sessao-cartao-rotulo {
+  color: var(--rp-iris);
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sessao-cartao-texto {
+  font-size: 20px;
+  white-space: pre-wrap;
+}
+
+.sessao-cartao-dica {
+  color: var(--rp-muted);
+  font-size: 13px;
+}
+
+.sessao-cartao-acoes {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 6px;
+}
+
+.sessao-controles {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.sessao-controles button {
+  padding: 10px 20px;
+  border-radius: 4px;
+  border: 1px solid var(--rp-overlay);
+  background: var(--rp-surface);
+  color: var(--rp-text);
+  font-weight: 500;
+}
+
+.sessao-controles .sessao-principal {
+  border-color: var(--rp-pine);
+  background: var(--rp-pine);
+  color: var(--rp-surface);
+}
+
+.sessao-fim p {
+  margin: 0;
+  color: var(--rp-subtle);
+}

@@ -38,6 +38,19 @@
   cursor: pointer;
 }
 
+.materia-menu .materia-menu-entrada {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.materia-menu-contagem {
+  color: var(--rp-subtle);
+  font-size: 14px;
+  font-weight: 400;
+}
+
 .materia-menu button:disabled {
   opacity: 0.5;
   cursor: not-allowed;

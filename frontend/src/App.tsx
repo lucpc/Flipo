@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { clearToken, getToken, setToken as saveToken, type Materia } from './api/client'
 import { AdicionarCartaoScreen } from './screens/AdicionarCartaoScreen'
 import { CartoesScreen } from './screens/CartoesScreen'
+import { EstudoScreen } from './screens/EstudoScreen'
 import { LoginScreen } from './screens/LoginScreen'
 import { MateriaScreen } from './screens/MateriaScreen'
 import { MateriasScreen } from './screens/MateriasScreen'
@@ -14,6 +15,7 @@ import { RevisaoScreen, type CartaoPendente } from './screens/RevisaoScreen'
 type View =
   | { nome: 'materias' }
   | { nome: 'materia'; materia: Materia }
+  | { nome: 'estudo'; materia: Materia }
   | { nome: 'adicionar-cartao'; materia: Materia }
   | { nome: 'revisao'; materia: Materia; itens: CartaoPendente[] }
   | { nome: 'cartoes'; materia: Materia }
@@ -51,8 +53,19 @@ function App() {
         <MateriaScreen
           materia={view.materia}
           onVoltar={() => setView({ nome: 'materias' })}
+          onEstudar={() => setView({ nome: 'estudo', materia: view.materia })}
           onAdicionarCartao={() => setView({ nome: 'adicionar-cartao', materia: view.materia })}
           onGerenciarCartoes={() => setView({ nome: 'cartoes', materia: view.materia })}
+        />
+      )
+
+    case 'estudo':
+      return (
+        <EstudoScreen
+          materia={view.materia}
+          onUnauthorized={handleUnauthorized}
+          onVoltar={() => setView({ nome: 'materia', materia: view.materia })}
+          onAdicionarCartao={() => setView({ nome: 'adicionar-cartao', materia: view.materia })}
         />
       )
 
