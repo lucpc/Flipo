@@ -69,9 +69,14 @@ RP_TEXT    ( 87,  82, 121)   texto primário
 RP_PINE    ( 40, 105, 131)   acento 1
 RP_FOAM    ( 86, 148, 159)   acento 2
 RP_IRIS    (144, 122, 169)   acento 3
-RP_ROSE    (215, 130, 126)   acento/alerta
+RP_ROSE    (215, 130, 126)   acento suave
+RP_LOVE    (180,  99, 122)   erro e ação destrutiva
 RP_HL_MED  (223, 218, 217)   destaque médio
 ```
+
+O love veio da paleta oficial do Rosé Pine Dawn (o protótipo usava só um subconjunto) para dar
+ao erro um vermelho legível: o rose tem contraste de 2,7:1 sobre a superfície, o love 4,0:1. Para
+texto pequeno de erro, que pede 4,5:1, o app usa o love escurecido `(154, 74, 98)`, com 5,7:1.
 
 ## Escopo do produto
 
