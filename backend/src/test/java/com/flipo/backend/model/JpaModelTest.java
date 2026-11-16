@@ -93,7 +93,6 @@ class JpaModelTest {
 
 		assertThat(cartao.getId()).isNotNull();
 		assertThat(cartao.isArquivado()).isFalse();
-		assertThat(cartao.getUltimaRevisao()).isNull();
 		assertThat(cartao.getCriadoEm()).isNotNull();
 
 		List<Cartao> cartoesDaMateria = cartaoRepository

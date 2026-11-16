@@ -93,6 +93,6 @@ public class CartaoController {
 	private static CartaoResponse paraResponse(Cartao cartao) {
 		return new CartaoResponse(
 				cartao.getId(), cartao.getPergunta(), cartao.getResposta(),
-				cartao.getOrigem(), cartao.isArquivado(), cartao.getUltimaRevisao());
+				cartao.getOrigem(), cartao.isArquivado());
 	}
 }

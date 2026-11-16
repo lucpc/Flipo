@@ -56,7 +56,7 @@ DELETE /api/materias/{id}
 ```
 GET /api/materias/{materiaId}/cartoes?arquivado=false
 // arquivado é opcional, default false (sessão de estudo). arquivado=true alimenta a revisão do Arquivo.
-200 → [{ "id", "pergunta", "resposta", "origem", "arquivado", "ultimaRevisao" }]
+200 → [{ "id", "pergunta", "resposta", "origem", "arquivado" }]
 
 POST /api/materias/{materiaId}/cartoes
 Body: { "pergunta", "resposta" }
@@ -64,14 +64,14 @@ Body: { "pergunta", "resposta" }
 
 PATCH /api/cartoes/{id}
 Body: { "pergunta", "resposta" }
-200 → { "id", "pergunta", "resposta", "origem", "arquivado", "ultimaRevisao" }
+200 → { "id", "pergunta", "resposta", "origem", "arquivado" }
 // edição de conteúdo apenas — não altera o campo arquivado
 
 PATCH /api/cartoes/{id}/arquivar
-200 → { "id", "pergunta", "resposta", "origem", "arquivado": true, "ultimaRevisao" }
+200 → { "id", "pergunta", "resposta", "origem", "arquivado": true }
 
 PATCH /api/cartoes/{id}/desarquivar
-200 → { "id", "pergunta", "resposta", "origem", "arquivado": false, "ultimaRevisao" }
+200 → { "id", "pergunta", "resposta", "origem", "arquivado": false }
 
 DELETE /api/cartoes/{id}
 204

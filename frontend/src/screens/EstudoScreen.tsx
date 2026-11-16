@@ -5,8 +5,7 @@ import './EstudoScreen.css'
 
 // Sessão de estudo (docs/01-fluxos-de-usuario.md, seção 5): busca só os
 // cartões ativos (arquivado=false) na ordem devolvida pela API e entrega a
-// lista ao baralho. Nada é gravado durante a sessão — nem avaliação nem
-// `ultimaRevisao`.
+// lista ao baralho. Nada é gravado durante a sessão.
 interface EstudoScreenProps {
   materia: Materia
   onUnauthorized: () => void

@@ -77,7 +77,6 @@ export interface Cartao {
   resposta: string
   origem: string
   arquivado: boolean
-  ultimaRevisao: string | null
 }
 
 export function login(email: string, senha: string): Promise<{ token: string }> {

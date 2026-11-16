@@ -58,10 +58,6 @@ public class Cartao {
 	@Column(name = "criado_em", nullable = false, updatable = false)
 	private Instant criadoEm;
 
-	// Só um registro informativo de "visto pela última vez em" — nunca usado para calcular prazos.
-	@Column(name = "ultima_revisao")
-	private Instant ultimaRevisao;
-
 	protected Cartao() {
 		// exigido pelo JPA
 	}
@@ -118,14 +114,6 @@ public class Cartao {
 
 	public Instant getCriadoEm() {
 		return criadoEm;
-	}
-
-	public Instant getUltimaRevisao() {
-		return ultimaRevisao;
-	}
-
-	public void setUltimaRevisao(Instant ultimaRevisao) {
-		this.ultimaRevisao = ultimaRevisao;
 	}
 
 	@Override
