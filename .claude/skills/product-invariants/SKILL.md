@@ -22,6 +22,8 @@ These were considered and deliberately rejected. Do not reintroduce them as "imp
   additionally be done per card inside the Arquivo review (`docs/01-fluxos-de-usuario.md` §7).
 - No artificial limit on subjects per user (the original prototype's `MAX_MATERIAS = 5` is gone).
 - No Rust microservice for text preprocessing.
+- No gamification: no streaks, points, badges, "overdue" indicators, or error counters. It
+  contradicts the no-pressure study philosophy.
 
 ## AI-generation boundary — never bypass
 

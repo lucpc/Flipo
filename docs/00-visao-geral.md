@@ -70,9 +70,12 @@ RP_ROSE    (215, 130, 126)   acento/alerta
 RP_HL_MED  (223, 218, 217)   destaque médio
 ```
 
-## Escopo do MVP
+## Escopo do produto
 
-**Dentro do escopo:**
+O Flipo é planejado como produto final, não como MVP: o que está listado como incluído é o que
+o produto tem que ter, e a ordem de implementação segue o produto (ver `Backlog.md`).
+
+**Incluído:**
 - Cadastro/login de usuário (multi-tenant — cada usuário só vê seus próprios dados)
 - CRUD de matérias
 - CRUD de cartões (manual)
@@ -81,13 +84,19 @@ RP_HL_MED  (223, 218, 217)   destaque médio
 - Arquivar/desarquivar cartão via tela de edição
 - Arquivo por matéria: revisão dos cartões arquivados, com "Desarquivar" em cada cartão
 - BYOK (usuário pode configurar a própria chave de API de IA)
+- Tags livres: criadas pelo próprio usuário, sem lista pré-definida (detalhamento de onde a tag
+  vive e o que ela permite ainda a fazer em `01-fluxos-de-usuario.md`)
 
-**Fora do escopo do MVP (não implementar sem decisão explícita):**
+**Descartado (decisões fechadas — não implementar):**
 - Repetição espaçada com datas/algoritmo tipo SM-2 (foi cogitada e descartada — ver histórico)
-- Colaboração/compartilhamento de matérias entre usuários
-- Grafo de conhecimento / tags cruzadas entre matérias
-- Gamificação (streaks, pontos, etc.)
+- Gamificação: streaks, pontos, crachás de "atrasado", contadores de erro. Contraria a filosofia
+  de estudo sem pressão (cenário C6 do relatório de PIU: a ansiedade dos decks "atrasados" é o
+  que faz o usuário abandonar outras ferramentas)
 - Microsserviço em Rust (cogitado, descartado por decisão do dono do produto)
+
+**Em aberto (decidir antes de implementar):**
+- Colaboração/compartilhamento de matérias entre usuários
+- Grafo de conhecimento (visualizar ligações entre matérias além das tags)
 
 ## Documentos relacionados
 

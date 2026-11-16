@@ -16,7 +16,8 @@ Dashboard
 ## 1. Dashboard
 
 Tela de entrada pós-login. Espaço reservado para métricas futuras (ex: total de matérias,
-atividade recente). Não bloqueante para o MVP — pode ser simples no início.
+atividade recente). Conteúdo ainda a definir — sem métricas que cobrem o usuário (nada de
+streaks ou "atrasados", ver `00-visao-geral.md`).
 
 ## 2. Lista de matérias
 

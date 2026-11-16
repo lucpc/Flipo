@@ -4,7 +4,7 @@ Este arquivo orienta qualquer sessão de desenvolvimento assistido neste reposit
 documentos detalhados estão em `docs/` — leia-os antes de implementar qualquer funcionalidade
 relacionada ao tema que cobrem.
 
-- `docs/00-visao-geral.md` — produto, diferencial, filosofia de revisão, escopo do MVP
+- `docs/00-visao-geral.md` — produto, diferencial, filosofia de revisão, escopo do produto
 - `docs/01-fluxos-de-usuario.md` — telas e navegação
 - `docs/02-modelo-de-dados.md` — schema do banco (entidades, campos, relacionamentos)
 - `docs/03-contrato-api.md` — endpoints REST (request/response)
@@ -64,6 +64,8 @@ lacunas a preencher livremente:
 5. **Sem limite artificial de matérias por usuário** (diferente do protótipo original).
 6. **Sem microsserviço em Rust.** Cogitado, descartado.
 7. **Chaves de API de terceiros nunca em texto puro**, nunca retornadas por endpoint algum.
+8. **Sem gamificação.** Nada de streaks, pontos, crachás de "atrasado" ou contadores de erro —
+   contraria o estudo sem pressão.
 
 ## Identidade visual
 

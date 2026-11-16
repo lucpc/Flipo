@@ -42,8 +42,7 @@ tempo depurando saída malformada de modelo pequeno, a primeira implementação 
 estabelecida, em camada barata:
 
 - **Anthropic** (ex: Claude Haiku) e/ou **Gemini** (ex: Gemini Flash) — saída estruturada em JSON
-  confiável, latência baixa. Custo por chamada é irrelevante no volume de desenvolvimento de um
-  MVP solo.
+  confiável, latência baixa. Custo por chamada é irrelevante no volume de desenvolvimento.
 
 `GeradorAnthropic` (e, se usado, `GeradorGemini`) `implements GeradorDeCartoes` — chamada sempre
 feita a partir do backend (nunca do cliente, para não expor a chave), solicitando saída

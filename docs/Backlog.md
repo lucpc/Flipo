@@ -60,7 +60,7 @@ Interface `GeradorDeCartoes`, implementação Anthropic/Gemini, endpoints `gerar
 Entidade `ChaveApi`, endpoints de chave, seleção de implementação por usuário.
 [Milestone](https://github.com/lucpc/Flipo/milestone/6) · issues `epic:E6`
 
-## Épico 7 — Redução de custo (opcional, pós-validação)
+## Épico 7 — Redução de custo (opcional)
 
 Avaliar Ollama/Groq como cota padrão; parsing tolerante a JSON malformado se adotado.
 [Milestone](https://github.com/lucpc/Flipo/milestone/7) · issues `epic:E7`
@@ -118,7 +118,8 @@ Aplicada via [ruleset](https://github.com/lucpc/Flipo/rules/22697263) `main-prot
 ### Definição de pronto (por tarefa)
 
 1. Endpoint(s)/tela(s) implementados conforme `03-contrato-api.md` / `01-fluxos-de-usuario.md`.
-2. Testes de serviço (JUnit + Mockito) para regra de negócio não trivial.
+2. Testes de serviço (JUnit + Mockito) para regra de negócio não trivial, e testes de componente
+   (Vitest + Testing Library) para tela ou componente com interação não trivial.
 3. Nenhuma decisão da lista "Decisões de produto já fechadas" (`CLAUDE.md`) violada.
 4. Nenhum endpoint novo devolve dado de outro usuário nem uma chave de API em texto puro.
 5. Issue fechada como `completed` e Project Status = `Done` (ver skill `github-project`).
