@@ -75,7 +75,7 @@ For "start #7", "work on #7", "implement #7":
    ```bash
    gh project item-edit --id <item-id> --project-id <project-id> --field-id <status-field-id> --single-select-option-id <in-progress-option-id>
    ```
-4. Then begin implementation, delegating to `backend-java`/`frontend-react` per `CLAUDE.md`.
+4. Then begin implementation, delegating to `backend-java`/`frontend-flutter` per `CLAUDE.md`.
 
 Do not add a start comment unless the user asks for one.
 
@@ -101,7 +101,7 @@ For "mark #7 done", "finish #7", "close #7", or completion of an issue the user 
    - <verification 1>
    - <verification 2>"
    ```
-4. **Verify sync**: `gh issue view <n> --json state,stateReason,projectItems` — state closed, reason completed, Project Status Done.
+4. **Verify sync**: `gh api repos/lucpc/Flipo/issues/<n> --jq "[.state, .state_reason]"` (state closed, reason completed) and `gh issue view <n> --json projectItems` (Project Status Done). The installed `gh` does not support `--json stateReason`.
 
 ### Reopen an issue
 

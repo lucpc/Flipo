@@ -22,6 +22,10 @@ These were considered and deliberately rejected. Do not reintroduce them as "imp
   additionally be done per card inside the Arquivo review (`docs/01-fluxos-de-usuario.md` §7).
 - No artificial limit on subjects per user (the original prototype's `MAX_MATERIAS = 5` is gone).
 - No Rust microservice for text preprocessing.
+- No gamification: no streaks, points, badges, "overdue" indicators, or error counters. It
+  contradicts the no-pressure study philosophy.
+- No tags beyond the subject, no knowledge graph. `Materia` is the card's only grouping and
+  already acts as a free, user-created tag.
 
 ## AI-generation boundary — never bypass
 
@@ -55,7 +59,10 @@ These were considered and deliberately rejected. Do not reintroduce them as "imp
 - Backend: Java 21, Spring Boot, Spring Data JPA, Spring Security (JWT).
 - Database: PostgreSQL, migrations via Flyway — do not rely on `ddl-auto: update` beyond local
   prototyping.
-- Frontend: React + Vite + TypeScript.
+- App: Flutter (Dart), one codebase for Android, iOS and web. The React `frontend/` is being
+  retired (Épico 9) — don't add features to it.
+- On the app, the JWT lives in secure storage (`flutter_secure_storage`), never in plain
+  preferences.
 - AI generation goes through the `GeradorDeCartoes` interface; never call a provider SDK directly
   from a controller or from frontend code (provider keys must never reach the client).
 - Visual identity: Rosé Pine Dawn palette (values in `docs/00-visao-geral.md`) — do not swap

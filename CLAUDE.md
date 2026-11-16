@@ -4,7 +4,7 @@ Este arquivo orienta qualquer sessão de desenvolvimento assistido neste reposit
 documentos detalhados estão em `docs/` — leia-os antes de implementar qualquer funcionalidade
 relacionada ao tema que cobrem.
 
-- `docs/00-visao-geral.md` — produto, diferencial, filosofia de revisão, escopo do MVP
+- `docs/00-visao-geral.md` — produto, diferencial, filosofia de revisão, escopo do produto
 - `docs/01-fluxos-de-usuario.md` — telas e navegação
 - `docs/02-modelo-de-dados.md` — schema do banco (entidades, campos, relacionamentos)
 - `docs/03-contrato-api.md` — endpoints REST (request/response)
@@ -24,7 +24,7 @@ fechadas + regras de segurança, resumidas dessa mesma forma para não precisar 
 | Agente | Quando delegar |
 |---|---|
 | `backend-java` | Entidades JPA, migrations, controllers, serviços, testes do backend |
-| `frontend-react` | Telas, navegação, integração com a API, testes do frontend |
+| `frontend-flutter` | Telas do app Flutter (Android, iOS, web), navegação, integração com a API, testes de widget |
 | `code-reviewer` | Revisão final independente antes de marcar uma issue como concluída |
 | `github-project` | Ler/mover issues no board, abrir/fechar issue, status do roadmap ("o que fazer agora?") |
 
@@ -44,7 +44,8 @@ numa tela de revisão comum antes de qualquer persistência.
 
 - Backend: Java 21, Spring Boot, Spring Data JPA, Spring Security (JWT)
 - Banco: PostgreSQL (Flyway para migrations)
-- Frontend: React + Vite + TypeScript
+- App: Flutter (Dart), um único código para Android, iOS e web, publicado nas lojas. Substituiu
+  o primeiro frontend em React (`frontend/`), que está sendo aposentado (Épico 9)
 - IA: interface `GeradorDeCartoes`, implementação trocável (Ollama/Groq em desenvolvimento,
   Anthropic em produção), com suporte a BYOK (chave própria do usuário)
 
@@ -64,11 +65,16 @@ lacunas a preencher livremente:
 5. **Sem limite artificial de matérias por usuário** (diferente do protótipo original).
 6. **Sem microsserviço em Rust.** Cogitado, descartado.
 7. **Chaves de API de terceiros nunca em texto puro**, nunca retornadas por endpoint algum.
+8. **Sem gamificação.** Nada de streaks, pontos, crachás de "atrasado" ou contadores de erro —
+   contraria o estudo sem pressão.
+9. **A matéria é a única organização do cartão.** Ela já funciona como tag livre criada pelo
+   usuário; sem tags adicionais nem grafo de conhecimento.
 
 ## Identidade visual
 
-Preservar a paleta Rosé Pine Dawn do protótipo original como tema base do frontend — valores em
-`docs/00-visao-geral.md`.
+Preservar a paleta Rosé Pine Dawn do protótipo original como tema base do app — valores em
+`docs/00-visao-geral.md`. As telas seguem o protótipo interativo de PIU no Figma (quadros citados
+em `docs/01-fluxos-de-usuario.md`).
 
 ## Ordem de implementação e definição de pronto
 

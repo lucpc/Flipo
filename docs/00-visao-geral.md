@@ -33,6 +33,9 @@ Os dois caminhos convergem numa **tela de revisão comum**: nenhum cartão gerad
 Isso preserva o espírito de liberdade do projeto original (o usuário decide, o sistema sugere)
 e ao mesmo tempo demonstra integração de LLM de forma útil, não decorativa.
 
+Nos dois caminhos, criar um cartão tem que ser rápido e levar poucos toques: o estudante não
+pode gastar produzindo o cartão o tempo que poderia estar estudando.
+
 ## Filosofia de revisão: liberdade sem pressão
 
 Ao contrário de Anki/Quizlet, o produto **não impõe prazos de revisão nem exige uma avaliação
@@ -54,7 +57,7 @@ Ver `01-fluxos-de-usuario.md` para o detalhamento tela a tela.
 ## Identidade visual a preservar
 
 A paleta Rosé Pine Dawn do protótipo original deve ser levada para o rebuild como tema base
-(ex: via variáveis de tema no frontend):
+(no app Flutter, via `ThemeData`/`ColorScheme`):
 
 ```
 RP_BASE    (250, 244, 237)   fundo
@@ -70,10 +73,15 @@ RP_ROSE    (215, 130, 126)   acento/alerta
 RP_HL_MED  (223, 218, 217)   destaque médio
 ```
 
-## Escopo do MVP
+## Escopo do produto
 
-**Dentro do escopo:**
+O Flipo é planejado como produto final, não como MVP: o que está listado como incluído é o que
+o produto tem que ter, e a ordem de implementação segue o produto (ver `Backlog.md`).
+
+**Incluído:**
+- App para Android e iOS, publicado nas lojas, e versão web — um único app Flutter
 - Cadastro/login de usuário (multi-tenant — cada usuário só vê seus próprios dados)
+- Excluir a própria conta e todos os dados (exigência das lojas de aplicativos)
 - CRUD de matérias
 - CRUD de cartões (manual)
 - Geração de cartões por IA a partir de texto colado ou PDF, com tela de revisão
@@ -82,12 +90,17 @@ RP_HL_MED  (223, 218, 217)   destaque médio
 - Arquivo por matéria: revisão dos cartões arquivados, com "Desarquivar" em cada cartão
 - BYOK (usuário pode configurar a própria chave de API de IA)
 
-**Fora do escopo do MVP (não implementar sem decisão explícita):**
+**Descartado (decisões fechadas — não implementar):**
 - Repetição espaçada com datas/algoritmo tipo SM-2 (foi cogitada e descartada — ver histórico)
-- Colaboração/compartilhamento de matérias entre usuários
-- Grafo de conhecimento / tags cruzadas entre matérias
-- Gamificação (streaks, pontos, etc.)
+- Gamificação: streaks, pontos, crachás de "atrasado", contadores de erro. Contraria a filosofia
+  de estudo sem pressão (cenário C6 do relatório de PIU: a ansiedade dos decks "atrasados" é o
+  que faz o usuário abandonar outras ferramentas)
 - Microsserviço em Rust (cogitado, descartado por decisão do dono do produto)
+- Tags além da matéria e grafo de conhecimento: a matéria já é a tag do cartão — livre, criada
+  pelo próprio usuário, sem lista pré-definida — e é a única forma de organização
+
+**Em aberto (decidir antes de implementar):**
+- Colaboração/compartilhamento de matérias entre usuários
 
 ## Documentos relacionados
 

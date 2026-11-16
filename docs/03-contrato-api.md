@@ -17,6 +17,19 @@ Body: { "email", "senha" }
 200 → { "token" }
 ```
 
+## Usuário
+
+```
+GET /api/usuarios/me
+200 → { "id", "nome", "email" }
+// saudação "Olá, {nome}!" em Minhas matérias e inicial do avatar
+
+DELETE /api/usuarios/me
+204
+// "Excluir conta" (tela Conta): apaga o usuário e, em cascata, matérias, cartões e chaves.
+// Exigência das lojas de aplicativos para apps que permitem criar conta.
+```
+
 ## Matérias
 
 ```
@@ -75,8 +88,10 @@ de recurso na API é mais simples do que um schema mínimo por endpoint.
 
 ```
 POST /api/materias/{materiaId}/cartoes/gerar-ia
-Body: { "texto": "...", "quantidade": 10 }
+Body: { "texto": "...", "quantidade": 10, "nivel": "definicao" }
 // ou multipart com um PDF anexado no lugar de "texto"
+// quantidade: padrão 10. nivel: "definicao" (definição simples, padrão) ou "aplicacao"
+// (aplicação/raciocínio)
 200 → [{ "pergunta", "resposta" }]
 // não persiste nada — apenas sugestões para a tela de revisão
 
