@@ -28,7 +28,6 @@ erDiagram
     string origem
     boolean arquivado
     timestamp criado_em
-    timestamp ultima_revisao
   }
   CHAVES_API {
     uuid id PK
@@ -70,7 +69,6 @@ Sem limite de quantidade de matérias por usuário (diferente do protótipo orig
 | origem | string | `manual` ou `ia`. Usar `CHECK` constraint, não enum nativo do Postgres (mais fácil de evoluir sem `ALTER TYPE`) |
 | arquivado | boolean | default `false`. Substitui qualquer modelo de "estado de memória" — é a única flag de progresso do cartão |
 | criado_em | timestamp | |
-| ultima_revisao | timestamp | nullable. Só um registro informativo de "visto pela última vez em", nunca usado para calcular prazos |
 
 **Importante:** este modelo passou por duas iterações antes de chegar aqui — uma versão inicial
 cogitou um algoritmo de repetição espaçada estilo SM-2 (campos `intervalo`, `fatorFacilidade`,
