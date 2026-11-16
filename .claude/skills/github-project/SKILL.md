@@ -101,7 +101,7 @@ For "mark #7 done", "finish #7", "close #7", or completion of an issue the user 
    - <verification 1>
    - <verification 2>"
    ```
-4. **Verify sync**: `gh issue view <n> --json state,stateReason,projectItems` — state closed, reason completed, Project Status Done.
+4. **Verify sync**: `gh api repos/lucpc/Flipo/issues/<n> --jq "[.state, .state_reason]"` (state closed, reason completed) and `gh issue view <n> --json projectItems` (Project Status Done). The installed `gh` does not support `--json stateReason`.
 
 ### Reopen an issue
 
