@@ -57,6 +57,8 @@ DELETE /api/materias/{id}
 GET /api/materias/{materiaId}/cartoes?arquivado=false
 // arquivado é opcional, default false (sessão de estudo). arquivado=true alimenta a revisão do Arquivo.
 200 → [{ "id", "pergunta", "resposta", "origem", "arquivado" }]
+// em ordem de criação (mais antigo primeiro), com o id como desempate. Editar, arquivar ou
+// desarquivar não muda a posição do cartão.
 
 POST /api/materias/{materiaId}/cartoes
 Body: { "pergunta", "resposta" }

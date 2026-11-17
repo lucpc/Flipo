@@ -38,13 +38,14 @@ public class CartaoService {
 
 	/**
 	 * Lista os cartões de {@code materiaId} pertencentes a {@code usuarioId}, filtrados por
-	 * {@code arquivado} já na query (sem filtrar em memória). Reusa
-	 * {@link MateriaService#buscarPorIdEUsuario} pra validar a posse da matéria antes de listar —
-	 * {@code materiaId} do path nunca é confiável sozinho.
+	 * {@code arquivado} já na query (sem filtrar em memória), em ordem de criação (desempate pelo
+	 * id). Reusa {@link MateriaService#buscarPorIdEUsuario} pra validar a posse da matéria antes de
+	 * listar — {@code materiaId} do path nunca é confiável sozinho.
 	 */
 	public List<Cartao> listarPorMateriaEUsuario(UUID materiaId, UUID usuarioId, boolean arquivado) {
 		materiaService.buscarPorIdEUsuario(materiaId, usuarioId);
-		return cartaoRepository.findByMateriaIdAndMateria_Usuario_IdAndArquivado(materiaId, usuarioId, arquivado);
+		return cartaoRepository.findByMateriaIdAndMateria_Usuario_IdAndArquivadoOrderByCriadoEmAscIdAsc(
+				materiaId, usuarioId, arquivado);
 	}
 
 	/**

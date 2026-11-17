@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,8 +18,14 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.blankOrNullString;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -50,6 +57,9 @@ class CartaoControllerTest {
 
 	@Autowired
 	private CartaoRepository cartaoRepository;
+
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
 
 	private String emailUnico() {
 		return "usuaria-" + UUID.randomUUID() + "@flipo.test";
@@ -182,6 +192,69 @@ class CartaoControllerTest {
 				.andExpect(jsonPath("$.length()").value(2))
 				.andExpect(jsonPath("$[0].arquivado").value(true))
 				.andExpect(jsonPath("$[1].arquivado").value(true));
+	}
+
+	/**
+	 * Insere um cartão direto via SQL com {@code id} e {@code criado_em} escolhidos, para que a
+	 * ordem física das linhas no heap seja diferente da ordem de criação. Sem isso o teste de
+	 * ordenação passaria por acaso: numa tabela pequena o Postgres devolve as linhas na ordem de
+	 * inserção, e editar um cartão é um update HOT que mantém a posição dele no bitmap scan.
+	 */
+	private UUID inserirCartaoComCriadoEm(String materiaId, UUID id, String pergunta, Instant criadoEm) {
+		jdbcTemplate.update(
+				"INSERT INTO cartoes (id, materia_id, pergunta, resposta, origem, arquivado, criado_em) "
+						+ "VALUES (?, ?, ?, 'resposta', 'manual', false, ?)",
+				id, UUID.fromString(materiaId), pergunta, Timestamp.from(criadoEm));
+		return id;
+	}
+
+	/** UUID aleatório com o primeiro dígito fixo, para controlar a ordem entre dois ids. */
+	private static UUID uuidComecandoCom(char primeiroDigito) {
+		return UUID.fromString(primeiroDigito + UUID.randomUUID().toString().substring(1));
+	}
+
+	@Test
+	void listarDevolveCartoesEmOrdemDeCriacaoComIdDeDesempateMesmoDepoisDeEditarEArquivar() throws Exception {
+		String token = registrarEObterToken();
+		String materiaId = criarMateria(token, "Matéria");
+		materiaRepository.flush();
+
+		// Ordem física de inserção: terceiro, primeiro, empate (id maior), empate (id menor).
+		Instant base = Instant.parse("2026-01-01T10:00:00Z");
+		UUID terceiro = inserirCartaoComCriadoEm(materiaId, UUID.randomUUID(), "terceiro", base.plusSeconds(120));
+		UUID primeiro = inserirCartaoComCriadoEm(materiaId, UUID.randomUUID(), "primeiro", base);
+		UUID empateIdMaior = inserirCartaoComCriadoEm(materiaId, uuidComecandoCom('f'), "empate", base.plusSeconds(60));
+		UUID empateIdMenor = inserirCartaoComCriadoEm(materiaId, uuidComecandoCom('0'), "empate", base.plusSeconds(60));
+
+		assertListaNaOrdem(token, materiaId, primeiro, empateIdMenor, empateIdMaior, terceiro);
+
+		mockMvc.perform(patch("/api/cartoes/" + primeiro)
+				.header("Authorization", "Bearer " + token)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(new CartaoBody("primeiro editado", "resposta"))))
+				.andExpect(status().isOk());
+
+		assertListaNaOrdem(token, materiaId, primeiro, empateIdMenor, empateIdMaior, terceiro);
+
+		mockMvc.perform(patch("/api/cartoes/" + empateIdMenor + "/arquivar")
+				.header("Authorization", "Bearer " + token))
+				.andExpect(status().isOk());
+		mockMvc.perform(patch("/api/cartoes/" + empateIdMenor + "/desarquivar")
+				.header("Authorization", "Bearer " + token))
+				.andExpect(status().isOk());
+
+		assertListaNaOrdem(token, materiaId, primeiro, empateIdMenor, empateIdMaior, terceiro);
+	}
+
+	private void assertListaNaOrdem(String token, String materiaId, UUID... idsEsperados) throws Exception {
+		MvcResult resultado = mockMvc.perform(get("/api/materias/" + materiaId + "/cartoes")
+				.header("Authorization", "Bearer " + token))
+				.andExpect(status().isOk())
+				.andReturn();
+		List<String> ids = new ArrayList<>();
+		objectMapper.readTree(resultado.getResponse().getContentAsString())
+				.forEach(cartao -> ids.add(cartao.get("id").asText()));
+		assertThat(ids).containsExactly(Arrays.stream(idsEsperados).map(UUID::toString).toArray(String[]::new));
 	}
 
 	@Test
