@@ -4,6 +4,7 @@ import '../api/api_client.dart';
 import '../widgets/baralho.dart';
 import '../widgets/coluna_central.dart';
 import '../widgets/mensagem_de_erro.dart';
+import 'adicionar_cartao.dart';
 
 /// Sessão de estudo (docs/01-fluxos-de-usuario.md, seção 5, quadros 05a–05e): busca só os cartões
 /// ativos e entrega a lista ao [Baralho]. Nada é gravado durante a sessão.
@@ -39,6 +40,19 @@ class _TelaEstudoState extends State<TelaEstudo> {
       if (!mounted) return;
       setState(() => _erro = textoDoErro(e));
     }
+  }
+
+  // Atalho da sessão vazia: adiciona e, se algo foi salvo, recarrega para já estudar o cartão novo.
+  Future<void> _adicionarCartao() async {
+    final aviso = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) =>
+            TelaAdicionarCartao(api: widget.api, materiaId: widget.materia.id),
+      ),
+    );
+    if (!mounted || aviso == null) return;
+    setState(() => _cartoes = null);
+    await _carregar();
   }
 
   @override
@@ -93,10 +107,8 @@ class _TelaEstudoState extends State<TelaEstudo> {
                           ),
                         ),
                         const SizedBox(height: 24),
-                        // Por ora volta para a matéria, onde fica "Adicionar cartão"; o #42 pode
-                        // abrir a tela de adicionar direto daqui.
                         FilledButton.icon(
-                          onPressed: () => Navigator.of(context).pop(),
+                          onPressed: _adicionarCartao,
                           icon: const Icon(Icons.add),
                           label: const Text('Adicionar cartão'),
                         ),

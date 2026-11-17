@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flipo/main.dart';
+import 'package:flipo/telas/adicionar_cartao.dart';
 import 'package:flipo/telas/autenticacao.dart';
 import 'package:flipo/telas/estudo.dart';
 import 'package:flipo/telas/materias.dart';
@@ -56,6 +57,7 @@ void main() {
         {'id': 'm1', 'nome': 'Redes', 'totalAtivos': 3, 'totalArquivados': 1},
       ]),
       'GET /api/materias/m1/cartoes': cartoes,
+      'POST /api/materias/m1/cartoes': () => json(201, cartao(1)),
     };
     await tester.pumpWidget(
       FlipoApp(
@@ -167,17 +169,53 @@ void main() {
     expect(requisicoes.where((r) => r.url.path == '/api/materias').length, 2);
   });
 
-  testWidgets('sem cartões ativos, mostra o vazio e "Adicionar cartão" volta '
-      'para a matéria', (tester) async {
-    await abrirEstudo(tester, () => json(200, []));
+  testWidgets('sem cartões ativos, "Adicionar cartão" abre a criação e, ao '
+      'salvar, a sessão recarrega com o cartão novo', (tester) async {
+    await abrirEstudo(
+      tester,
+      emSequencia([
+        () => json(200, []),
+        () => json(200, [cartao(1)]),
+      ]),
+    );
 
     expect(find.text('Nenhum cartão ativo nesta matéria'), findsOneWidget);
     expect(proximo, findsNothing);
 
     await tocar(tester, find.widgetWithText(FilledButton, 'Adicionar cartão'));
+    expect(find.byType(TelaAdicionarCartao), findsOneWidget);
 
-    expect(find.byType(TelaEstudo), findsNothing);
-    expect(find.byType(TelaMateria), findsOneWidget);
+    await tocar(tester, find.text('Criar manualmente'));
+    await tester.enterText(find.byType(TextField).at(0), 'Pergunta 1');
+    await tester.enterText(find.byType(TextField).at(1), 'Resposta 1');
+    await tocar(tester, find.text('Ir para revisão'));
+    await tocar(tester, find.text('Confirmar revisão (1 cartão)'));
+
+    expect(find.byType(TelaAdicionarCartao), findsNothing);
+    expect(find.byType(TelaEstudo), findsOneWidget);
+    expect(find.text('Pergunta 1'), findsOneWidget);
+    expect(find.text('cartão 1 de 1'), findsOneWidget);
+    expect(
+      requisicoes
+          .where((r) => r.url.path == '/api/materias/m1/cartoes')
+          .map((r) => r.method),
+      ['GET', 'POST', 'GET'],
+    );
+  });
+
+  testWidgets('sair da criação sem salvar volta para a sessão vazia sem '
+      'recarregar', (tester) async {
+    await abrirEstudo(tester, () => json(200, []));
+
+    await tocar(tester, find.widgetWithText(FilledButton, 'Adicionar cartão'));
+    await tocar(tester, find.byType(BackButton));
+
+    expect(find.byType(TelaAdicionarCartao), findsNothing);
+    expect(find.text('Nenhum cartão ativo nesta matéria'), findsOneWidget);
+    expect(
+      requisicoes.where((r) => r.url.path == '/api/materias/m1/cartoes').length,
+      1,
+    );
   });
 
   testWidgets('falha ao carregar mostra o erro, e "Tentar de novo" carrega', (
