@@ -26,6 +26,10 @@ public interface CartaoRepository extends JpaRepository<Cartao, UUID> {
 	// autenticado.
 	Optional<Cartao> findByIdAndMateria_Usuario_Id(UUID id, UUID usuarioId);
 
+	// Contagem de uma única matéria (resposta de PATCH /api/materias/{id}), também escopada ao dono
+	// da matéria, como as buscas acima.
+	long countByMateriaIdAndMateria_Usuario_IdAndArquivado(UUID materiaId, UUID usuarioId, boolean arquivado);
+
 	// Uma única query agregada para todas as matérias do usuário (GROUP BY materia + arquivado),
 	// em vez de uma query de contagem por matéria — evita N+1 ao montar GET /api/materias.
 	// Escopado por Materia.usuario, nunca por um materiaId cru vindo de fora.
