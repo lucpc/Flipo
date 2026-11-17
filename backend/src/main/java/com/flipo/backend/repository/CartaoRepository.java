@@ -17,8 +17,9 @@ public interface CartaoRepository extends JpaRepository<Cartao, UUID> {
 	List<Cartao> findByMateriaIdAndMateria_Usuario_Id(UUID materiaId, UUID usuarioId);
 
 	// Lista já filtrada por arquivado=true/false na própria query (GET .../cartoes?arquivado=),
-	// em vez de trazer tudo e filtrar em memória.
-	List<Cartao> findByMateriaIdAndMateria_Usuario_IdAndArquivado(
+	// em vez de trazer tudo e filtrar em memória. Ordem de criação, com o id como desempate para a
+	// ordem ser estável: criado_em não muda ao editar, arquivar ou desarquivar o cartão.
+	List<Cartao> findByMateriaIdAndMateria_Usuario_IdAndArquivadoOrderByCriadoEmAscIdAsc(
 			UUID materiaId, UUID usuarioId, boolean arquivado);
 
 	// Busca por id já escopada ao dono da matéria — usar sempre no lugar de findById(id) puro

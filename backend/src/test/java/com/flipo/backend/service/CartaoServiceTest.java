@@ -82,7 +82,8 @@ class CartaoServiceTest {
 	void listarPorMateriaEUsuarioValidaPosseDaMateriaAntesDeListar() {
 		Materia materia = materia();
 		when(materiaService.buscarPorIdEUsuario(materiaId, usuarioId)).thenReturn(materia);
-		when(cartaoRepository.findByMateriaIdAndMateria_Usuario_IdAndArquivado(materiaId, usuarioId, false))
+		when(cartaoRepository.findByMateriaIdAndMateria_Usuario_IdAndArquivadoOrderByCriadoEmAscIdAsc(
+				materiaId, usuarioId, false))
 				.thenReturn(List.of());
 
 		cartaoService.listarPorMateriaEUsuario(materiaId, usuarioId, false);
@@ -99,7 +100,7 @@ class CartaoServiceTest {
 				.isInstanceOf(RecursoNaoEncontradoException.class);
 
 		verify(cartaoRepository, never())
-				.findByMateriaIdAndMateria_Usuario_IdAndArquivado(any(), any(), anyBoolean());
+				.findByMateriaIdAndMateria_Usuario_IdAndArquivadoOrderByCriadoEmAscIdAsc(any(), any(), anyBoolean());
 	}
 
 	@Test
@@ -107,7 +108,8 @@ class CartaoServiceTest {
 		when(materiaService.buscarPorIdEUsuario(materiaId, usuarioId)).thenReturn(materia());
 		Cartao arquivado = new Cartao(materia(), "p", "r", Cartao.ORIGEM_MANUAL);
 		arquivado.setArquivado(true);
-		when(cartaoRepository.findByMateriaIdAndMateria_Usuario_IdAndArquivado(materiaId, usuarioId, true))
+		when(cartaoRepository.findByMateriaIdAndMateria_Usuario_IdAndArquivadoOrderByCriadoEmAscIdAsc(
+				materiaId, usuarioId, true))
 				.thenReturn(List.of(arquivado));
 
 		List<Cartao> resultado = cartaoService.listarPorMateriaEUsuario(materiaId, usuarioId, true);
