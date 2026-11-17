@@ -16,8 +16,10 @@ public record RegistroRequest(
 		@Size(max = 255)
 		String email,
 
-		// Máximo 72: além disso o BCrypt trunca silenciosamente o valor.
+		// O máximo é em bytes, não em caracteres: ver SenhaAte72Bytes. Mensagem própria no @Size
+		// porque, sem max, a padrão diria "entre 8 e 2147483647".
 		@NotBlank
-		@Size(min = 8, max = 72)
+		@Size(min = 8, message = "A senha precisa ter pelo menos 8 caracteres.")
+		@SenhaAte72Bytes
 		String senha) {
 }
