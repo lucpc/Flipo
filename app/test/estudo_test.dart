@@ -1,0 +1,272 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flipo/main.dart';
+import 'package:flipo/telas/adicionar_cartao.dart';
+import 'package:flipo/telas/autenticacao.dart';
+import 'package:flipo/telas/estudo.dart';
+import 'package:flipo/telas/materias.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+
+void main() {
+  late List<http.Request> requisicoes;
+
+  setUp(() {
+    FlutterSecureStorage.setMockInitialValues({'flipo_token': 'jwt-ana'});
+    requisicoes = [];
+  });
+
+  http.Response json(int status, Object corpo) => http.Response.bytes(
+    utf8.encode(jsonEncode(corpo)),
+    status,
+    headers: {'content-type': 'application/json'},
+  );
+
+  Map<String, Object> cartao(int n) => {
+    'id': 'c$n',
+    'pergunta': 'Pergunta $n',
+    'resposta': 'Resposta $n',
+    'origem': 'manual',
+    'arquivado': false,
+  };
+
+  /// Respostas em sequência; a última se repete.
+  FutureOr<http.Response> Function() emSequencia(
+    List<FutureOr<http.Response> Function()> lista,
+  ) {
+    var i = 0;
+    return () => lista[i < lista.length - 1 ? i++ : i]();
+  }
+
+  /// Entra no app já logado, abre a matéria Redes e toca em "Estudar cartões". [cartoes] responde
+  /// ao `GET` dos cartões da matéria. Com [esperar] falso, não espera a tela assentar (um
+  /// carregamento pendente gira para sempre): só a transição da rota.
+  Future<void> abrirEstudo(
+    WidgetTester tester,
+    FutureOr<http.Response> Function() cartoes, {
+    bool esperar = true,
+  }) async {
+    final respostas = <String, FutureOr<http.Response> Function()>{
+      'GET /api/usuarios/me': () =>
+          json(200, {'id': 'u1', 'nome': 'Ana', 'email': 'ana@exemplo.com'}),
+      'GET /api/materias': () => json(200, [
+        {'id': 'm1', 'nome': 'Redes', 'totalAtivos': 3, 'totalArquivados': 1},
+      ]),
+      'GET /api/materias/m1/cartoes': cartoes,
+      'POST /api/materias/m1/cartoes': () => json(201, cartao(1)),
+    };
+    await tester.pumpWidget(
+      FlipoApp(
+        httpClient: MockClient((requisicao) async {
+          requisicoes.add(requisicao);
+          return respostas['${requisicao.method} ${requisicao.url.path}']!();
+        }),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Redes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Estudar cartões'));
+    if (esperar) {
+      await tester.pumpAndSettle();
+    } else {
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+    }
+  }
+
+  Future<void> tocar(WidgetTester tester, Finder alvo) async {
+    await tester.tap(alvo);
+    await tester.pumpAndSettle();
+  }
+
+  final proximo = find.text('Próximo cartão');
+  final avaliacao = find.textContaining(
+    RegExp('acertei|errei|como você se saiu', caseSensitive: false),
+  );
+
+  testWidgets('busca só os cartões ativos e começa pelo primeiro, na '
+      'pergunta', (tester) async {
+    await abrirEstudo(tester, () => json(200, [cartao(1), cartao(2)]));
+
+    final busca = requisicoes.singleWhere(
+      (r) => r.url.path == '/api/materias/m1/cartoes',
+    );
+    expect(busca.method, 'GET');
+    expect(busca.url.queryParameters, {'arquivado': 'false'});
+    expect(find.text('Redes'), findsOneWidget);
+    expect(find.text('cartão 1 de 2'), findsOneWidget);
+    expect(find.text('pergunta'), findsOneWidget);
+    expect(find.text('Pergunta 1'), findsOneWidget);
+    expect(find.text('toque para virar'), findsOneWidget);
+    expect(find.text('Resposta 1'), findsNothing);
+    expect(avaliacao, findsNothing);
+  });
+
+  testWidgets('tocar no cartão vira entre pergunta e resposta', (tester) async {
+    await abrirEstudo(tester, () => json(200, [cartao(1)]));
+
+    await tocar(tester, find.text('Pergunta 1'));
+    expect(find.text('resposta'), findsOneWidget);
+    expect(find.text('Resposta 1'), findsOneWidget);
+    expect(find.text('Pergunta 1'), findsNothing);
+    expect(avaliacao, findsNothing);
+
+    await tocar(tester, find.text('Resposta 1'));
+    expect(find.text('pergunta'), findsOneWidget);
+    expect(find.text('Pergunta 1'), findsOneWidget);
+  });
+
+  testWidgets('"Próximo cartão" avança, atualiza a posição, e o cartão '
+      'seguinte começa pela pergunta', (tester) async {
+    await abrirEstudo(tester, () => json(200, [cartao(1), cartao(2)]));
+    await tocar(tester, find.text('Pergunta 1'));
+
+    await tocar(tester, proximo);
+
+    expect(find.text('cartão 2 de 2'), findsOneWidget);
+    expect(find.text('pergunta'), findsOneWidget);
+    expect(find.text('Pergunta 2'), findsOneWidget);
+    expect(find.text('Resposta 2'), findsNothing);
+  });
+
+  testWidgets('depois do último vem o fim; "Estudar de novo" recomeça e '
+      '"Voltar para a matéria" fecha', (tester) async {
+    await abrirEstudo(
+      tester,
+      () => json(200, [cartao(1), cartao(2), cartao(3)]),
+    );
+    for (var i = 0; i < 3; i++) {
+      await tocar(tester, proximo);
+    }
+
+    expect(find.byIcon(Icons.check_circle_outline), findsOneWidget);
+    expect(find.text('Você passou pelos cartões ativos'), findsOneWidget);
+    expect(
+      find.text('Sem nota, sem placar. Volte quando quiser.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('cartão 3 de 3'), findsNothing);
+    expect(avaliacao, findsNothing);
+
+    await tocar(tester, find.text('Estudar de novo'));
+    expect(find.text('cartão 1 de 3'), findsOneWidget);
+    expect(find.text('pergunta'), findsOneWidget);
+    expect(find.text('Pergunta 1'), findsOneWidget);
+
+    for (var i = 0; i < 3; i++) {
+      await tocar(tester, proximo);
+    }
+    await tocar(tester, find.text('Voltar para a matéria'));
+
+    expect(find.byType(TelaEstudo), findsNothing);
+    expect(find.byType(TelaMateria), findsOneWidget);
+    // A matéria recarrega os totais ao voltar.
+    expect(requisicoes.where((r) => r.url.path == '/api/materias').length, 2);
+  });
+
+  testWidgets('sem cartões ativos, "Adicionar cartão" abre a criação e, ao '
+      'salvar, a sessão recarrega com o cartão novo', (tester) async {
+    await abrirEstudo(
+      tester,
+      emSequencia([
+        () => json(200, []),
+        () => json(200, [cartao(1)]),
+      ]),
+    );
+
+    expect(find.text('Nenhum cartão ativo nesta matéria'), findsOneWidget);
+    expect(proximo, findsNothing);
+
+    await tocar(tester, find.widgetWithText(FilledButton, 'Adicionar cartão'));
+    expect(find.byType(TelaAdicionarCartao), findsOneWidget);
+
+    await tocar(tester, find.text('Criar manualmente'));
+    await tester.enterText(find.byType(TextField).at(0), 'Pergunta 1');
+    await tester.enterText(find.byType(TextField).at(1), 'Resposta 1');
+    await tocar(tester, find.text('Ir para revisão'));
+    await tocar(tester, find.text('Confirmar revisão (1 cartão)'));
+
+    expect(find.byType(TelaAdicionarCartao), findsNothing);
+    expect(find.byType(TelaEstudo), findsOneWidget);
+    expect(find.text('Pergunta 1'), findsOneWidget);
+    expect(find.text('cartão 1 de 1'), findsOneWidget);
+    expect(
+      requisicoes
+          .where((r) => r.url.path == '/api/materias/m1/cartoes')
+          .map((r) => r.method),
+      ['GET', 'POST', 'GET'],
+    );
+  });
+
+  testWidgets('sair da criação sem salvar volta para a sessão vazia sem '
+      'recarregar', (tester) async {
+    await abrirEstudo(tester, () => json(200, []));
+
+    await tocar(tester, find.widgetWithText(FilledButton, 'Adicionar cartão'));
+    await tocar(tester, find.byType(BackButton));
+
+    expect(find.byType(TelaAdicionarCartao), findsNothing);
+    expect(find.text('Nenhum cartão ativo nesta matéria'), findsOneWidget);
+    expect(
+      requisicoes.where((r) => r.url.path == '/api/materias/m1/cartoes').length,
+      1,
+    );
+  });
+
+  testWidgets('falha ao carregar mostra o erro, e "Tentar de novo" carrega', (
+    tester,
+  ) async {
+    final segundaTentativa = Completer<http.Response>();
+    await abrirEstudo(
+      tester,
+      emSequencia([
+        () => json(500, {'mensagem': 'Erro interno.'}),
+        () => segundaTentativa.future,
+      ]),
+    );
+    expect(find.text('Erro interno.'), findsOneWidget);
+    expect(proximo, findsNothing);
+
+    await tester.tap(find.text('Tentar de novo'));
+    await tester.pump();
+    expect(find.text('Erro interno.'), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    segundaTentativa.complete(json(200, [cartao(1)]));
+    await tester.pumpAndSettle();
+    expect(find.text('cartão 1 de 1'), findsOneWidget);
+    expect(find.text('Pergunta 1'), findsOneWidget);
+  });
+
+  testWidgets('a falha que chega depois de sair da tela não mexe nela', (
+    tester,
+  ) async {
+    final cartoes = Completer<http.Response>();
+    await abrirEstudo(tester, () => cartoes.future, esperar: false);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byType(TelaEstudo), findsNothing);
+    cartoes.complete(json(500, {'mensagem': 'Erro interno.'}));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(TelaMateria), findsOneWidget);
+  });
+
+  testWidgets('401 ao carregar volta ao login sem erro na tela que saiu', (
+    tester,
+  ) async {
+    await abrirEstudo(tester, () => http.Response('', 401));
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(TelaEstudo), findsNothing);
+    expect(find.byType(TelaLogin), findsOneWidget);
+  });
+}

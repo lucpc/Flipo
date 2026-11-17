@@ -7,6 +7,7 @@ import '../widgets/mensagem_de_erro.dart';
 import 'adicionar_cartao.dart';
 import 'conta.dart';
 import 'em_breve.dart';
+import 'estudo.dart';
 
 /// Minhas matérias (docs/01-fluxos-de-usuario.md, seção 2, quadro 02 do Figma). Recarrega a lista
 /// sempre que uma tela aberta daqui fecha, para os totais nunca ficarem velhos.
@@ -318,7 +319,7 @@ class _TelaMateriaState extends State<TelaMateria> {
     }
   }
 
-  // Estudar (#47) e Arquivo (#23) abrem a tela provisória por enquanto.
+  // Arquivo (#23) abre a tela provisória por enquanto.
   void _abrir(String titulo) => _abrirTela(TelaEmBreve(titulo: titulo));
 
   void _abrirTela(Widget tela) =>
@@ -359,7 +360,9 @@ class _TelaMateriaState extends State<TelaMateria> {
                             resumo: ativos == 0
                                 ? 'nenhum ativo'
                                 : _contagem(ativos, 'ativo', 'ativos'),
-                            aoTocar: () => _abrir('Estudar cartões'),
+                            aoTocar: () => _abrirTela(
+                              TelaEstudo(api: widget.api, materia: _materia),
+                            ),
                           ),
                           _Entrada(
                             icone: const Icon(Icons.inventory_2_outlined),

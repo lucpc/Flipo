@@ -46,6 +46,35 @@ void main() {
     expect(materias.single.totalArquivados, 2);
   });
 
+  test(
+    'lista os cartões ativos por padrão, e os arquivados quando pedido',
+    () async {
+      final api = clientRespondendo(
+        200,
+        '[{"id":"c1","pergunta":"O que é TCP?","resposta":"Um protocolo",'
+        '"origem":"ia","arquivado":false}]',
+      );
+
+      final cartoes = await api.listarCartoes('m1');
+      await api.listarCartoes('m1', arquivados: true);
+
+      expect(
+        requisicoes[0].url.toString(),
+        'http://api.teste/api/materias/m1/cartoes?arquivado=false',
+      );
+      expect(
+        requisicoes[1].url.toString(),
+        'http://api.teste/api/materias/m1/cartoes?arquivado=true',
+      );
+      final cartao = cartoes.single;
+      expect(cartao.id, 'c1');
+      expect(cartao.pergunta, 'O que é TCP?');
+      expect(cartao.resposta, 'Um protocolo');
+      expect(cartao.origem, 'ia');
+      expect(cartao.arquivado, isFalse);
+    },
+  );
+
   test('login envia e-mail e senha e guarda o token recebido', () async {
     final api = clientRespondendo(200, '{"token":"jwt-novo"}');
 

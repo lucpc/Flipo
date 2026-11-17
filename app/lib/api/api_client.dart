@@ -158,6 +158,23 @@ class ApiClient {
         as Map<String, dynamic>,
   );
 
+  /// Os cartões ativos da matéria (sessão de estudo) ou, com [arquivados], os do Arquivo.
+  Future<List<Cartao>> listarCartoes(
+    String materiaId, {
+    bool arquivados = false,
+  }) async {
+    final corpo =
+        await _requisitar(
+              'GET',
+              '/api/materias/${Uri.encodeComponent(materiaId)}/cartoes'
+                  '?arquivado=$arquivados',
+            )
+            as List<dynamic>;
+    return corpo
+        .map((json) => Cartao.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<Object?> _requisitar(
     String metodo,
     String caminho, {
