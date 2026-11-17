@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flipo/main.dart';
 import 'package:flipo/telas/autenticacao.dart';
+import 'package:flipo/telas/materias.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,16 +25,23 @@ void main() {
     headers: {'content-type': 'application/json'},
   );
 
-  /// Abre o app com um backend falso: [respostas] mapeia o caminho para a resposta.
+  /// Abre o app com um backend falso: [respostas] mapeia o caminho para a resposta. A área
+  /// logada, por padrão, é a de uma usuária sem matérias.
   Future<void> abrirApp(
     WidgetTester tester,
     Map<String, http.Response Function()> respostas,
   ) async {
+    final todas = {
+      '/api/usuarios/me': () =>
+          json(200, {'id': 'u1', 'nome': 'Ana', 'email': 'ana@exemplo.com'}),
+      '/api/materias': () => json(200, []),
+      ...respostas,
+    };
     await tester.pumpWidget(
       FlipoApp(
         httpClient: MockClient((requisicao) async {
           requisicoes.add(requisicao);
-          return respostas[requisicao.url.path]!();
+          return todas[requisicao.url.path]!();
         }),
       ),
     );
@@ -48,7 +56,7 @@ void main() {
   final campoSenha = find.widgetWithText(TextFormField, 'Senha');
   final botaoEntrar = find.widgetWithText(FilledButton, 'Entrar');
   final botaoCriarConta = find.widgetWithText(FilledButton, 'Criar conta');
-  final areaLogada = find.byType(TelaInicial);
+  final areaLogada = find.byType(TelaMinhasMaterias);
 
   Future<void> preencherLogin(WidgetTester tester) async {
     await tester.enterText(campoEmail, ' ana@exemplo.com ');
@@ -65,8 +73,8 @@ void main() {
     await tester.tap(botaoEntrar);
     await tester.pumpAndSettle();
 
-    expect(requisicoes.single.method, 'POST');
-    expect(corpoDe(requisicoes.single), {
+    expect(requisicoes.first.method, 'POST');
+    expect(corpoDe(requisicoes.first), {
       'email': 'ana@exemplo.com',
       'senha': 'segredo123',
     });
@@ -193,13 +201,16 @@ void main() {
     expect(requisicoes.map((r) => r.url.path), [
       '/api/auth/registro',
       '/api/auth/login',
+      // A área logada carrega a saudação e as matérias.
+      '/api/usuarios/me',
+      '/api/materias',
     ]);
     expect(corpoDe(requisicoes.first), {
       'nome': 'Ana',
       'email': 'ana@exemplo.com',
       'senha': 'segredo123',
     });
-    expect(corpoDe(requisicoes.last), {
+    expect(corpoDe(requisicoes[1]), {
       'email': 'ana@exemplo.com',
       'senha': 'segredo123',
     });
@@ -297,23 +308,33 @@ void main() {
     expect(find.byType(TelaLogin), findsNothing);
   });
 
-  testWidgets('"Sair" apaga o token e volta ao login', (tester) async {
+  testWidgets('avatar, Conta e "Sair" apagam o token e voltam ao login', (
+    tester,
+  ) async {
     FlutterSecureStorage.setMockInitialValues({'flipo_token': 'jwt-ana'});
     await abrirApp(tester, {});
 
-    await tester.tap(find.widgetWithText(TextButton, 'Sair'));
+    await tester.tap(find.byTooltip('Conta'));
+    await tester.pumpAndSettle();
+    requisicoes.clear();
+    await tester.tap(find.text('Sair'));
     await tester.pumpAndSettle();
 
     expect(find.byType(TelaLogin), findsOneWidget);
     expect(await armazenamento.read(key: 'flipo_token'), isNull);
+    // Ao fechar a Conta, a lista não recarrega: a sessão acabou.
+    expect(requisicoes, isEmpty);
     expect(find.text('Sua sessão expirou. Entre de novo.'), findsNothing);
   });
 
   testWidgets('sessão expirada (401) volta ao login, mesmo com telas abertas '
       'por cima', (tester) async {
     FlutterSecureStorage.setMockInitialValues({'flipo_token': 'jwt-vencido'});
-    await abrirApp(tester, {'/api/materias': () => http.Response('', 401)});
-    final api = tester.widget<TelaInicial>(areaLogada).api;
+    var expirou = false;
+    await abrirApp(tester, {
+      '/api/materias': () => expirou ? http.Response('', 401) : json(200, []),
+    });
+    final api = tester.widget<TelaMinhasMaterias>(areaLogada).api;
     // Uma tela por cima da área logada, como a matéria aberta a partir da lista.
     tester
         .state<NavigatorState>(find.byType(Navigator))
@@ -325,6 +346,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Matéria'), findsOneWidget);
 
+    expirou = true;
     await expectLater(api.listarMaterias(), throwsException);
     await tester.pumpAndSettle();
 
