@@ -36,7 +36,9 @@ void main() {
   };
 
   /// Respostas de `GET /api/materias` em sequência; a última se repete.
-  http.Response Function() emSequencia(List<http.Response Function()> lista) {
+  FutureOr<http.Response> Function() emSequencia(
+    List<FutureOr<http.Response> Function()> lista,
+  ) {
     var i = 0;
     return () => lista[i < lista.length - 1 ? i++ : i]();
   }
@@ -105,7 +107,10 @@ void main() {
     tester,
   ) async {
     await abrirApp(tester, {
-      'GET /api/materias': () => json(200, []),
+      'GET /api/materias': emSequencia([
+        () => json(200, []),
+        () => json(200, [materia('m9', 'Biologia', 0, 0)]),
+      ]),
       'POST /api/materias': () => json(201, materia('m9', 'Biologia', 0, 0)),
     });
     expect(find.text('Nenhuma matéria ainda'), findsOneWidget);
@@ -126,6 +131,45 @@ void main() {
     expect(find.text('Biologia'), findsOneWidget);
     expect(find.text('nenhum cartão'), findsOneWidget);
     expect(find.text('Nenhuma matéria ainda'), findsNothing);
+  });
+
+  testWidgets('criar a matéria recarrega a lista, e uma resposta antiga que '
+      'chega depois é descartada', (tester) async {
+    final recargaLenta = Completer<http.Response>();
+    await abrirApp(tester, {
+      'GET /api/materias': emSequencia([
+        () => json(200, [materia('m1', 'Redes', 6, 2)]),
+        () => recargaLenta.future,
+        () => json(200, [
+          materia('m1', 'Redes', 7, 2),
+          materia('m9', 'Biologia', 0, 0),
+        ]),
+      ]),
+      'POST /api/materias': () => json(201, materia('m9', 'Biologia', 0, 0)),
+    });
+
+    // Puxar para recarregar; a resposta fica pendente.
+    await tester.fling(find.text('Redes'), const Offset(0, 300), 1000);
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(seconds: 1));
+    }
+    expect(listagens(), 2);
+
+    // Com o indicador girando, pumpAndSettle não termina: avança o tempo à mão.
+    await tester.tap(botao('Nova matéria'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.enterText(find.byType(TextField), 'Biologia');
+    await tester.tap(botao('Criar'));
+    await tester.pump(const Duration(seconds: 1));
+    expect(listagens(), 3);
+    expect(find.text('7 ativos'), findsOneWidget);
+
+    // A recarga que saiu antes da criação chega por último, com dados velhos.
+    recargaLenta.complete(json(200, [materia('m1', 'Redes', 6, 2)]));
+    await tester.pumpAndSettle();
+
+    expect(find.text('7 ativos'), findsOneWidget);
+    expect(find.text('Biologia'), findsOneWidget);
   });
 
   testWidgets('erro ao criar a matéria fica no diálogo', (tester) async {
@@ -220,6 +264,84 @@ void main() {
 
     expect(find.text('Minhas matérias'), findsOneWidget);
     expect(find.text('4 ativos'), findsOneWidget);
+  });
+
+  testWidgets('falha ao recarregar a matéria mostra o erro e "Tentar de novo" '
+      'recupera', (tester) async {
+    await abrirApp(tester, {
+      'GET /api/materias': emSequencia([
+        () => json(200, [materia('m1', 'Redes', 6, 2)]),
+        () => json(500, {'mensagem': 'Erro interno.'}),
+        () => json(200, [materia('m1', 'Redes', 5, 3)]),
+      ]),
+    });
+    await tester.tap(find.text('Redes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Estudar cartões'));
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Erro interno.'), findsOneWidget);
+    // Sem totais velhos na tela.
+    expect(find.text('6 ativos'), findsNothing);
+
+    await tester.tap(find.text('Tentar de novo'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Erro interno.'), findsNothing);
+    expect(find.text('5 ativos'), findsOneWidget);
+    expect(find.text('3 arquivados'), findsOneWidget);
+  });
+
+  testWidgets('matéria apagada em outro lugar: ao recarregar, volta para a '
+      'lista', (tester) async {
+    await abrirApp(tester, {
+      'GET /api/materias': emSequencia([
+        () => json(200, [materia('m1', 'Redes', 6, 2)]),
+        () => json(200, []),
+      ]),
+    });
+    await tester.tap(find.text('Redes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Estudar cartões'));
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Minhas matérias'), findsOneWidget);
+    expect(find.text('Nenhuma matéria ainda'), findsOneWidget);
+  });
+
+  testWidgets('matéria apagada, mas o usuário já está saindo dela: a lista '
+      'continua aberta', (tester) async {
+    final recarga = Completer<http.Response>();
+    await abrirApp(tester, {
+      'GET /api/materias': emSequencia([
+        () => json(200, [materia('m1', 'Redes', 6, 2)]),
+        () => recarga.future,
+        () => json(200, []),
+      ]),
+    });
+    await tester.tap(find.text('Redes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Estudar cartões'));
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    // Com a barra de progresso girando, pumpAndSettle não termina: avança até a tela sair.
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.text('Em breve'), findsNothing);
+
+    // Volta para a lista enquanto a recarga da matéria ainda não chegou.
+    await tester.pageBack();
+    await tester.pump();
+    recarga.complete(json(200, []));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Minhas matérias'), findsOneWidget);
+    expect(find.text('Nenhuma matéria ainda'), findsOneWidget);
   });
 
   testWidgets('sem arquivados, o Arquivo fica desabilitado', (tester) async {

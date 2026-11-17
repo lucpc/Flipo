@@ -67,9 +67,9 @@ class _TelaMinhasMateriasState extends State<TelaMinhasMaterias> {
     );
     // Sem matéria: o usuário cancelou, ou um 401 fechou o diálogo.
     if (materia == null || !mounted) return;
-    // Uma recarga que saiu antes da criação viria sem a matéria nova.
-    _pedido++;
     setState(() => _materias = [...?_materias, materia]);
+    // Uma recarga que saiu antes da criação viria sem a matéria nova; esta a substitui.
+    _carregar();
   }
 
   @override
@@ -296,8 +296,12 @@ class _TelaMateriaState extends State<TelaMateria> {
       if (!mounted || pedido != _pedido) return;
       final atual = materias.where((m) => m.id == _materia.id).firstOrNull;
       if (atual == null) {
-        // Apagada em outro aparelho: volta para a lista, que recarrega.
-        Navigator.of(context).pop();
+        // Apagada em outro aparelho: volta para a lista, que recarrega. Só se esta tela está no
+        // topo: se o usuário já está saindo dela, o pop fecharia a lista; se outra tela abriu por
+        // cima, a recarga de quando ela fechar passa por aqui de novo.
+        if (ModalRoute.of(context)?.isCurrent ?? false) {
+          Navigator.of(context).pop();
+        }
         return;
       }
       setState(() {
