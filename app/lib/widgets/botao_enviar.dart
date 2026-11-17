@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Botão principal de um envio: enquanto [enviando], fica desabilitado e mostra um indicador de
-/// carregamento no lugar do rótulo.
+/// carregamento no lugar do rótulo. Sem [aoPressionar], fica desabilitado.
 class BotaoEnviar extends StatelessWidget {
   const BotaoEnviar({
     super.key,
@@ -12,7 +12,7 @@ class BotaoEnviar extends StatelessWidget {
 
   final String rotulo;
   final bool enviando;
-  final VoidCallback aoPressionar;
+  final VoidCallback? aoPressionar;
 
   @override
   Widget build(BuildContext context) {
