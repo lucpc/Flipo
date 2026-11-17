@@ -42,6 +42,16 @@ class Materia {
   final int totalArquivados;
 }
 
+/// Por ora só o nome, para a saudação e o avatar de Minhas matérias.
+class Usuario {
+  Usuario({required this.nome});
+
+  factory Usuario.fromJson(Map<String, dynamic> json) =>
+      Usuario(nome: json['nome'] as String);
+
+  final String nome;
+}
+
 /// Client da API REST (docs/03-contrato-api.md). Guarda o JWT no armazenamento seguro do sistema
 /// e o envia como `Authorization: Bearer`. Um 401 numa requisição autenticada apaga o token e
 /// chama [aoExpirarSessao], para o app voltar ao login.
@@ -91,12 +101,22 @@ class ApiClient {
     );
   }
 
+  /// O usuário dono do token salvo.
+  Future<Usuario> buscarUsuarioAtual() async => Usuario.fromJson(
+    await _requisitar('GET', '/api/usuarios/me') as Map<String, dynamic>,
+  );
+
   Future<List<Materia>> listarMaterias() async {
     final corpo = await _requisitar('GET', '/api/materias') as List<dynamic>;
     return corpo
         .map((json) => Materia.fromJson(json as Map<String, dynamic>))
         .toList();
   }
+
+  Future<Materia> criarMateria(String nome) async => Materia.fromJson(
+    await _requisitar('POST', '/api/materias', corpo: {'nome': nome})
+        as Map<String, dynamic>,
+  );
 
   Future<Object?> _requisitar(
     String metodo,

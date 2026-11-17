@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 
 import '../api/api_client.dart';
+import '../widgets/botao_enviar.dart';
 import '../widgets/coluna_central.dart';
+import '../widgets/mensagem_de_erro.dart';
 
 /// Login (docs/01-fluxos-de-usuario.md, seção 1, quadro 01 do Figma). [aoEntrar] avisa o app que
 /// o token foi salvo, para trocar para a área logada.
@@ -115,9 +116,9 @@ class _TelaLoginState extends State<TelaLogin> {
                             ? 'Informe a senha.'
                             : null,
                       ),
-                      _MensagemDeErro(_erro),
+                      MensagemDeErro(_erro),
                       const SizedBox(height: 24),
-                      _BotaoEnviar(
+                      BotaoEnviar(
                         rotulo: 'Entrar',
                         enviando: _enviando,
                         aoPressionar: _entrar,
@@ -266,9 +267,9 @@ class _TelaCriarContaState extends State<TelaCriarConta> {
                       onFieldSubmitted: (_) => _criarConta(),
                       validator: _validarSenha,
                     ),
-                    _MensagemDeErro(_erro),
+                    MensagemDeErro(_erro),
                     const SizedBox(height: 24),
-                    _BotaoEnviar(
+                    BotaoEnviar(
                       rotulo: 'Criar conta',
                       enviando: _enviando,
                       aoPressionar: _criarConta,
@@ -289,14 +290,8 @@ Future<String?> _erroDe(Future<void> Function() acao) async {
   try {
     await acao();
     return null;
-  } on ApiException catch (e) {
-    return e.mensagem;
-  } on http.ClientException {
-    return 'Não foi possível conectar ao servidor.';
-  } catch (_) {
-    // Ex.: falha de TLS, resposta que não é JSON, erro do armazenamento seguro. Sem isto, o botão
-    // ficaria carregando para sempre.
-    return 'Algo deu errado. Tente de novo.';
+  } catch (e) {
+    return textoDoErro(e);
   }
 }
 
@@ -310,7 +305,7 @@ void _entrouCom(VoidCallback aoEntrar) {
 const _tamanhoMaximo = 255;
 
 // Forma básica (algo@algo.algo). A validação de verdade é a do backend, cuja mensagem aparece em
-// _MensagemDeErro.
+// MensagemDeErro.
 final _formatoDeEmail = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
 class _CampoEmail extends StatelessWidget {
@@ -340,56 +335,6 @@ class _CampoEmail extends StatelessWidget {
         }
         return null;
       },
-    );
-  }
-}
-
-class _MensagemDeErro extends StatelessWidget {
-  const _MensagemDeErro(this.mensagem);
-
-  final String? mensagem;
-
-  @override
-  Widget build(BuildContext context) {
-    final mensagem = this.mensagem;
-    if (mensagem == null) return const SizedBox.shrink();
-    final tema = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(top: 16),
-      child: Text(
-        mensagem,
-        style: tema.textTheme.bodyMedium?.merge(
-          tema.inputDecorationTheme.errorStyle,
-        ),
-      ),
-    );
-  }
-}
-
-class _BotaoEnviar extends StatelessWidget {
-  const _BotaoEnviar({
-    required this.rotulo,
-    required this.enviando,
-    required this.aoPressionar,
-  });
-
-  final String rotulo;
-  final bool enviando;
-  final VoidCallback aoPressionar;
-
-  @override
-  Widget build(BuildContext context) {
-    return FilledButton(
-      onPressed: enviando ? null : aoPressionar,
-      child: enviando
-          ? SizedBox.square(
-              dimension: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                semanticsLabel: rotulo,
-              ),
-            )
-          : Text(rotulo),
     );
   }
 }
