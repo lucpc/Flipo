@@ -42,6 +42,32 @@ class Materia {
   final int totalArquivados;
 }
 
+class Cartao {
+  Cartao({
+    required this.id,
+    required this.pergunta,
+    required this.resposta,
+    required this.origem,
+    required this.arquivado,
+  });
+
+  factory Cartao.fromJson(Map<String, dynamic> json) => Cartao(
+    id: json['id'] as String,
+    pergunta: json['pergunta'] as String,
+    resposta: json['resposta'] as String,
+    origem: json['origem'] as String,
+    arquivado: json['arquivado'] as bool,
+  );
+
+  final String id;
+  final String pergunta;
+  final String resposta;
+
+  /// `manual` ou `ia`.
+  final String origem;
+  final bool arquivado;
+}
+
 /// Por ora só o nome, para a saudação e o avatar de Minhas matérias.
 class Usuario {
   Usuario({required this.nome});
@@ -115,6 +141,20 @@ class ApiClient {
 
   Future<Materia> criarMateria(String nome) async => Materia.fromJson(
     await _requisitar('POST', '/api/materias', corpo: {'nome': nome})
+        as Map<String, dynamic>,
+  );
+
+  /// Cria um cartão manual, ativo, na matéria.
+  Future<Cartao> criarCartao(
+    String materiaId,
+    String pergunta,
+    String resposta,
+  ) async => Cartao.fromJson(
+    await _requisitar(
+          'POST',
+          '/api/materias/$materiaId/cartoes',
+          corpo: {'pergunta': pergunta, 'resposta': resposta},
+        )
         as Map<String, dynamic>,
   );
 

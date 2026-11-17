@@ -4,6 +4,7 @@ import '../api/api_client.dart';
 import '../widgets/botao_enviar.dart';
 import '../widgets/coluna_central.dart';
 import '../widgets/mensagem_de_erro.dart';
+import 'adicionar_cartao.dart';
 import 'conta.dart';
 import 'em_breve.dart';
 
@@ -317,9 +318,11 @@ class _TelaMateriaState extends State<TelaMateria> {
     }
   }
 
-  // Estudar (#47), Arquivo (#23) e Adicionar cartão (#42) abrem a tela provisória por enquanto.
-  void _abrir(String titulo) =>
-      _abrirEVoltar(context, widget.api, TelaEmBreve(titulo: titulo), (aviso) {
+  // Estudar (#47) e Arquivo (#23) abrem a tela provisória por enquanto.
+  void _abrir(String titulo) => _abrirTela(TelaEmBreve(titulo: titulo));
+
+  void _abrirTela(Widget tela) =>
+      _abrirEVoltar(context, widget.api, tela, (aviso) {
         setState(() => _aviso = aviso);
         _carregar();
       });
@@ -387,7 +390,12 @@ class _TelaMateriaState extends State<TelaMateria> {
               Padding(
                 padding: const EdgeInsets.all(24),
                 child: FilledButton.icon(
-                  onPressed: () => _abrir('Adicionar cartão'),
+                  onPressed: () => _abrirTela(
+                    TelaAdicionarCartao(
+                      api: widget.api,
+                      materiaId: _materia.id,
+                    ),
+                  ),
                   icon: const Icon(Icons.add),
                   label: const Text('Adicionar cartão'),
                 ),
