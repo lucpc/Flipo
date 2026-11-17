@@ -65,7 +65,7 @@ class _TelaMinhasMateriasState extends State<TelaMinhasMaterias> {
   Future<void> _novaMateria() async {
     final materia = await showDialog<Materia>(
       context: context,
-      builder: (_) => _DialogoNovaMateria(api: widget.api),
+      builder: (_) => _DialogoMateria(api: widget.api),
     );
     // Sem matéria: o usuário cancelou, ou um 401 fechou o diálogo.
     if (materia == null || !mounted) return;
@@ -180,22 +180,23 @@ class _TelaMinhasMateriasState extends State<TelaMinhasMaterias> {
   }
 }
 
-/// Pede o nome e cria a matéria. Fecha devolvendo a [Materia] criada; fechado de outro jeito
-/// (cancelar, ou um 401 que leva ao login), devolve null.
-class _DialogoNovaMateria extends StatefulWidget {
-  const _DialogoNovaMateria({required this.api});
+/// Pede o nome e cria a matéria ou, com [materia], a renomeia. Fecha devolvendo a [Materia]
+/// salva; fechado de outro jeito (cancelar, ou um 401 que leva ao login), devolve null.
+class _DialogoMateria extends StatefulWidget {
+  const _DialogoMateria({required this.api, this.materia});
 
   final ApiClient api;
+  final Materia? materia;
 
   @override
-  State<_DialogoNovaMateria> createState() => _DialogoNovaMateriaState();
+  State<_DialogoMateria> createState() => _DialogoMateriaState();
 }
 
-class _DialogoNovaMateriaState extends State<_DialogoNovaMateria> {
+class _DialogoMateriaState extends State<_DialogoMateria> {
   // Limite do MateriaRequest do backend.
   static const _tamanhoMaximo = 255;
 
-  final _nome = TextEditingController();
+  late final _nome = TextEditingController(text: widget.materia?.nome);
   bool _enviando = false;
   String? _erro;
 
@@ -205,7 +206,7 @@ class _DialogoNovaMateriaState extends State<_DialogoNovaMateria> {
     super.dispose();
   }
 
-  Future<void> _criar() async {
+  Future<void> _salvar() async {
     if (_enviando) return;
     final nome = _nome.text.trim();
     final invalido = nome.isEmpty
@@ -220,8 +221,11 @@ class _DialogoNovaMateriaState extends State<_DialogoNovaMateria> {
     if (invalido != null) return;
 
     try {
-      final materia = await widget.api.criarMateria(nome);
-      if (mounted) Navigator.of(context).pop(materia);
+      final materia = widget.materia;
+      final salva = materia == null
+          ? await widget.api.criarMateria(nome)
+          : await widget.api.renomearMateria(materia.id, nome);
+      if (mounted) Navigator.of(context).pop(salva);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -233,11 +237,11 @@ class _DialogoNovaMateriaState extends State<_DialogoNovaMateria> {
 
   @override
   Widget build(BuildContext context) {
-    // Enquanto envia, não fecha: a matéria seria criada sem aparecer na lista.
+    // Enquanto envia, não fecha: a matéria seria salva sem aparecer na tela.
     return PopScope(
       canPop: !_enviando,
       child: AlertDialog(
-        title: const Text('Nova matéria'),
+        title: Text(widget.materia == null ? 'Nova matéria' : 'Editar matéria'),
         content: TextField(
           controller: _nome,
           autofocus: true,
@@ -248,7 +252,7 @@ class _DialogoNovaMateriaState extends State<_DialogoNovaMateria> {
           ),
           textCapitalization: TextCapitalization.sentences,
           textInputAction: TextInputAction.done,
-          onSubmitted: (_) => _criar(),
+          onSubmitted: (_) => _salvar(),
         ),
         actions: [
           TextButton(
@@ -256,9 +260,9 @@ class _DialogoNovaMateriaState extends State<_DialogoNovaMateria> {
             child: const Text('Cancelar'),
           ),
           BotaoEnviar(
-            rotulo: 'Criar',
+            rotulo: widget.materia == null ? 'Criar' : 'Salvar',
             enviando: _enviando,
-            aoPressionar: _criar,
+            aoPressionar: _salvar,
           ),
         ],
       ),
@@ -266,7 +270,7 @@ class _DialogoNovaMateriaState extends State<_DialogoNovaMateria> {
   }
 }
 
-/// Tela da matéria (seção 3, quadros 03 e 03c–03e). Abre com a matéria vinda da lista e busca os
+/// Tela da matéria (seção 3, quadros 03 a 03e). Abre com a matéria vinda da lista e busca os
 /// totais de novo sempre que uma tela aberta daqui fecha. A tela que fecha pode devolver um aviso
 /// para o topo (ex.: `Navigator.pop(context, '8 cartões salvos em Estudar cartões')`).
 class TelaMateria extends StatefulWidget {
@@ -319,8 +323,29 @@ class _TelaMateriaState extends State<TelaMateria> {
     }
   }
 
-  // Arquivo (#23) abre a tela provisória por enquanto.
+  // Arquivo (#23) e Gerenciar cartões (#43) abrem a tela provisória por enquanto.
   void _abrir(String titulo) => _abrirTela(TelaEmBreve(titulo: titulo));
+
+  Future<void> _editar() async {
+    final materia = await showDialog<Materia>(
+      context: context,
+      builder: (_) => _DialogoMateria(api: widget.api, materia: _materia),
+    );
+    // Sem matéria: o usuário cancelou, ou um 401 fechou o diálogo.
+    if (materia == null || !mounted) return;
+    setState(() => _materia = materia);
+    // Uma recarga que saiu antes de renomear traria o nome antigo; esta a substitui.
+    _carregar();
+  }
+
+  Future<void> _apagar() async {
+    final apagou = await showDialog<bool>(
+      context: context,
+      builder: (_) => _DialogoApagarMateria(api: widget.api, materia: _materia),
+    );
+    // A lista recarrega quando esta tela fecha. Sem true: cancelou, ou um 401 já fechou tudo.
+    if (apagou == true && mounted) Navigator.of(context).pop();
+  }
 
   void _abrirTela(Widget tela) =>
       _abrirEVoltar(context, widget.api, tela, (aviso) {
@@ -336,7 +361,45 @@ class _TelaMateriaState extends State<TelaMateria> {
     final aviso = _aviso;
     final erro = _erro;
     return Scaffold(
-      appBar: AppBar(title: Text(_materia.nome)),
+      appBar: AppBar(
+        title: Text(_materia.nome),
+        actions: [
+          PopupMenuButton<VoidCallback>(
+            tooltip: 'Mais opções',
+            onSelected: (acao) => acao(),
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: _editar,
+                child: const ListTile(
+                  leading: Icon(Icons.edit_outlined),
+                  title: Text('Editar matéria'),
+                ),
+              ),
+              PopupMenuItem(
+                value: () => _abrir('Gerenciar cartões'),
+                child: const ListTile(
+                  leading: Icon(Icons.view_list_outlined),
+                  title: Text('Gerenciar cartões'),
+                ),
+              ),
+              // Ação destrutiva, separada das outras (quadro 03a).
+              const PopupMenuDivider(),
+              PopupMenuItem(
+                value: _apagar,
+                child: ListTile(
+                  leading: const Icon(Icons.close),
+                  title: const Text('Apagar matéria'),
+                  iconColor: tema.colorScheme.error,
+                  // O love puro não dá contraste para texto sobre o menu; o do texto de erro dá.
+                  textColor:
+                      tema.inputDecorationTheme.errorStyle?.color ??
+                      tema.colorScheme.error,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
       body: SafeArea(
         child: ColunaCentral(
           child: Column(
@@ -406,6 +469,92 @@ class _TelaMateriaState extends State<TelaMateria> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Confirma e apaga a matéria (quadro 03b). Fecha devolvendo true depois de apagar, ou se ela já
+/// não existia; num erro, fica aberto mostrando-o. Fechado de outro jeito (cancelar, ou um 401 que leva ao login),
+/// devolve null.
+class _DialogoApagarMateria extends StatefulWidget {
+  const _DialogoApagarMateria({required this.api, required this.materia});
+
+  final ApiClient api;
+  final Materia materia;
+
+  @override
+  State<_DialogoApagarMateria> createState() => _DialogoApagarMateriaState();
+}
+
+class _DialogoApagarMateriaState extends State<_DialogoApagarMateria> {
+  bool _apagando = false;
+  String? _erro;
+
+  Future<void> _apagar() async {
+    if (_apagando) return;
+    setState(() {
+      _apagando = true;
+      _erro = null;
+    });
+    try {
+      await widget.api.apagarMateria(widget.materia.id);
+    } catch (e) {
+      // 404: já tinha sido apagada (ex.: em outro aparelho), que é o que o usuário queria.
+      if (e is! ApiException || e.status != 404) {
+        if (!mounted) return;
+        setState(() {
+          _apagando = false;
+          _erro = textoDoErro(e);
+        });
+        return;
+      }
+    }
+    if (mounted) Navigator.of(context).pop(true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    final materia = widget.materia;
+    final cartoes = materia.totalAtivos + materia.totalArquivados;
+    final oQue = switch (cartoes) {
+      0 => 'A matéria "${materia.nome}" será apagada.',
+      1 => '"${materia.nome}" e seu cartão serão apagados.',
+      _ => '"${materia.nome}" e seus $cartoes cartões serão apagados.',
+    };
+    // Enquanto apaga, não fecha: a matéria sumiria com a tela dela ainda aberta.
+    return PopScope(
+      canPop: !_apagando,
+      child: AlertDialog(
+        title: const Text('Apagar matéria?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('$oQue Essa ação não pode ser desfeita.'),
+            MensagemDeErro(_erro),
+          ],
+        ),
+        actions: [
+          OutlinedButton(
+            onPressed: _apagando ? null : () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+          FilledButtonTheme(
+            data: FilledButtonThemeData(
+              style: FilledButton.styleFrom(
+                backgroundColor: tema.colorScheme.error,
+                foregroundColor: tema.colorScheme.onError,
+              ),
+            ),
+            child: BotaoEnviar(
+              rotulo: 'Apagar',
+              enviando: _apagando,
+              aoPressionar: _apagar,
+            ),
+          ),
+        ],
       ),
     );
   }

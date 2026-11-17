@@ -144,6 +144,22 @@ class ApiClient {
         as Map<String, dynamic>,
   );
 
+  /// Devolve a matéria renomeada, com os totais atuais.
+  Future<Materia> renomearMateria(String id, String nome) async =>
+      Materia.fromJson(
+        await _requisitar(
+              'PATCH',
+              '/api/materias/${Uri.encodeComponent(id)}',
+              corpo: {'nome': nome},
+            )
+            as Map<String, dynamic>,
+      );
+
+  /// Apaga a matéria e, com ela, todos os seus cartões.
+  Future<void> apagarMateria(String id) async {
+    await _requisitar('DELETE', '/api/materias/${Uri.encodeComponent(id)}');
+  }
+
   /// Cria um cartão manual, ativo, na matéria.
   Future<Cartao> criarCartao(
     String materiaId,
