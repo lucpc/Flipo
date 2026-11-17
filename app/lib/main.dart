@@ -3,8 +3,8 @@ import 'package:http/http.dart' as http;
 
 import 'api/api_client.dart';
 import 'telas/autenticacao.dart';
+import 'telas/materias.dart';
 import 'theme.dart';
-import 'widgets/coluna_central.dart';
 
 void main() {
   runApp(const FlipoApp());
@@ -87,41 +87,8 @@ class _FlipoAppState extends State<FlipoApp> {
         builder: (context, logado, _) => switch (logado) {
           null => const Scaffold(),
           false => TelaLogin(api: _api, aoEntrar: () => _mudarSessao(true)),
-          true => TelaInicial(api: _api, aoSair: _sair),
+          true => TelaMinhasMaterias(api: _api, aoSair: _sair),
         },
-      ),
-    );
-  }
-}
-
-/// Tela provisória da área logada, com "Sair". "Minhas matérias" entra no lugar dela (#41).
-class TelaInicial extends StatelessWidget {
-  const TelaInicial({super.key, required this.api, required this.aoSair});
-
-  /// Ainda sem uso aqui: é o que "Minhas matérias" vai receber.
-  final ApiClient api;
-  final VoidCallback aoSair;
-
-  @override
-  Widget build(BuildContext context) {
-    final tema = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Minhas matérias'),
-        actions: [TextButton(onPressed: aoSair, child: const Text('Sair'))],
-      ),
-      body: SafeArea(
-        child: ColunaCentral(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(
-              'Você entrou. A lista de matérias chega em breve.',
-              style: tema.textTheme.bodyLarge?.copyWith(
-                color: tema.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }
