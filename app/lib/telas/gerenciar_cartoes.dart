@@ -9,8 +9,8 @@ import 'editar_cartao.dart';
 /// ativos e depois os arquivados, cada grupo com o seu título. Tocar num cartão abre a edição
 /// (seção 6), e o que ela devolve já entra na lista, sem buscar de novo.
 ///
-/// Fecha devolvendo o aviso da última edição para a tela da matéria (ex.: "Cartão arquivado —
-/// agora está no Arquivo"), ou null se a última não deixou aviso.
+/// Fecha devolvendo o aviso de uma edição para a tela da matéria (ex.: "Cartão arquivado —
+/// agora está no Arquivo"), ou null se nenhuma deixou aviso que ainda vale.
 class TelaGerenciarCartoes extends StatefulWidget {
   const TelaGerenciarCartoes({
     super.key,
@@ -29,8 +29,10 @@ class _TelaGerenciarCartoesState extends State<TelaGerenciarCartoes> {
   // Os ativos e depois os arquivados. null enquanto carrega ou depois de uma falha.
   List<Cartao>? _cartoes;
   String? _erro;
-  // Só o da última edição: um aviso de antes (ex.: arquivou, e depois desarquivou) já não vale.
+  // O aviso e o cartão que o deixou. Uma edição depois, do mesmo cartão, o troca ou o tira (ex.:
+  // arquivou e depois desarquivou); a de outro cartão sem aviso não mexe nele.
   String? _aviso;
+  String? _avisoDe;
 
   @override
   void initState() {
@@ -70,7 +72,10 @@ class _TelaGerenciarCartoesState extends State<TelaGerenciarCartoes> {
     if (resultado == null || cartoes == null || !mounted) return;
     setState(() {
       _cartoes = resultado.aplicarEm(cartoes);
-      _aviso = resultado.aviso;
+      if (resultado.aviso != null || resultado.id == _avisoDe) {
+        _aviso = resultado.aviso;
+        _avisoDe = resultado.id;
+      }
     });
   }
 

@@ -94,8 +94,9 @@ enum _Acao { salvar, arquivar, excluir }
 /// texto, arquivar ou desarquivar, ou excluir. Cada ação grava na hora e fecha a tela devolvendo
 /// o [ResultadoDaEdicao]; se falha, a tela fica aberta com o erro.
 ///
-/// Arquivar só acontece aqui, por escolha do usuário: é decisão de produto fechada. As ações agem
-/// sobre o cartão salvo: arquivar ou excluir não grava o texto ainda não salvo dos campos.
+/// Arquivar só acontece aqui, por escolha do usuário: é decisão de produto fechada. Arquivar ou
+/// desarquivar com o texto mudado salva o texto antes, no mesmo toque; excluir descarta o texto
+/// não salvo.
 class TelaEditarCartao extends StatefulWidget {
   const TelaEditarCartao({
     super.key,
@@ -115,8 +116,14 @@ class TelaEditarCartao extends StatefulWidget {
 }
 
 class _TelaEditarCartaoState extends State<TelaEditarCartao> {
+  final _formulario = GlobalKey<FormularioCartaoState>();
+  // O cartão como está na API. Muda sem a tela fechar só se salvar o texto deu certo e arquivar
+  // em seguida falhou: aí voltar devolve um [CartaoEditado] com ele.
+  late Cartao _salvo = widget.cartao;
   _Acao? _emAndamento;
   String? _erro;
+
+  bool get _salvoSemFechar => !identical(_salvo, widget.cartao);
 
   Future<void> _executar(
     _Acao acao,
@@ -143,23 +150,36 @@ class _TelaEditarCartaoState extends State<TelaEditarCartao> {
   void _salvar(String pergunta, String resposta) => _executar(
     _Acao.salvar,
     () async => CartaoEditado(
-      await widget.api.editarCartao(widget.cartao.id, pergunta, resposta),
+      await widget.api.editarCartao(_salvo.id, pergunta, resposta),
     ),
   );
 
+  /// Com o texto mudado (e válido), salva antes e depois arquiva ou desarquiva. Com algum campo
+  /// vazio, só mostra o erro.
   void _arquivarOuDesarquivar() {
-    final id = widget.cartao.id;
-    _executar(
-      _Acao.arquivar,
-      widget.cartao.arquivado
-          ? () async =>
-                CartaoDesarquivado(await widget.api.desarquivarCartao(id))
-          : () async => CartaoArquivado(await widget.api.arquivarCartao(id)),
-    );
+    final valores = _formulario.currentState!.validar();
+    if (valores == null) return;
+    final cartao = _salvo;
+    final mudou =
+        valores.pergunta != cartao.pergunta ||
+        valores.resposta != cartao.resposta;
+    _executar(_Acao.arquivar, () async {
+      if (mudou) {
+        // Se arquivar falhar depois, a tela fica com o texto já salvo: tentar de novo só arquiva.
+        _salvo = await widget.api.editarCartao(
+          cartao.id,
+          valores.pergunta,
+          valores.resposta,
+        );
+      }
+      return cartao.arquivado
+          ? CartaoDesarquivado(await widget.api.desarquivarCartao(cartao.id))
+          : CartaoArquivado(await widget.api.arquivarCartao(cartao.id));
+    });
   }
 
   Future<void> _excluir() async {
-    final cartao = widget.cartao;
+    final cartao = _salvo;
     final excluir = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -202,7 +222,7 @@ class _TelaEditarCartaoState extends State<TelaEditarCartao> {
   Widget build(BuildContext context) {
     final tema = Theme.of(context);
     final cores = tema.colorScheme;
-    final cartao = widget.cartao;
+    final cartao = _salvo;
     final emAndamento = _emAndamento;
     final livre = emAndamento == null;
     final apoio = tema.textTheme.bodyMedium?.copyWith(
@@ -211,9 +231,15 @@ class _TelaEditarCartaoState extends State<TelaEditarCartao> {
     final rotuloArquivo = cartao.arquivado
         ? 'Desarquivar cartão'
         : 'Arquivar cartão';
-    // Enquanto grava, não fecha: a lista de quem abriu ficaria diferente da API.
-    return PopScope(
-      canPop: livre,
+    // Enquanto grava, não fecha: a lista de quem abriu ficaria diferente da API. Pelo mesmo
+    // motivo, com o texto salvo mas sem arquivar, voltar devolve o cartão salvo.
+    return PopScope<ResultadoDaEdicao>(
+      canPop: livre && !_salvoSemFechar,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && livre && _salvoSemFechar) {
+          Navigator.of(context).pop(CartaoEditado(_salvo));
+        }
+      },
       child: Scaffold(
         appBar: AppBar(title: const Text('Editar cartão')),
         body: SafeArea(
@@ -231,10 +257,12 @@ class _TelaEditarCartaoState extends State<TelaEditarCartao> {
                   ),
                   const SizedBox(height: 16),
                   FormularioCartao(
+                    key: _formulario,
                     pergunta: cartao.pergunta,
                     resposta: cartao.resposta,
                     rotulo: 'Salvar',
                     enviando: emAndamento == _Acao.salvar,
+                    bloqueado: emAndamento != null,
                     erro: _erro,
                     aoConfirmar: _salvar,
                   ),
@@ -270,7 +298,12 @@ class _TelaEditarCartaoState extends State<TelaEditarCartao> {
                   Center(
                     child: TextButton(
                       onPressed: livre ? _excluir : null,
-                      style: TextButton.styleFrom(foregroundColor: cores.error),
+                      // O tom de erro para texto, que tem contraste para letra pequena.
+                      style: TextButton.styleFrom(
+                        foregroundColor:
+                            tema.inputDecorationTheme.errorStyle?.color ??
+                            cores.error,
+                      ),
                       child: emAndamento == _Acao.excluir
                           ? const IndicadorDeEnvio('Excluir cartão')
                           : const Text('Excluir cartão'),

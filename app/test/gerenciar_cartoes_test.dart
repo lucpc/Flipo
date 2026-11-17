@@ -410,6 +410,191 @@ void main() {
       expect(aviso, isNull);
     });
 
+    group('arquivar com o texto mudado', () {
+      // O backend falso guarda o texto do último PATCH de conteúdo e o devolve, como o real.
+      late Map<String, Object> salvo;
+      late List<FutureOr<http.Response> Function()> arquivar;
+
+      setUp(() {
+        salvo = cartao(1);
+        arquivar = [];
+      });
+
+      Future<void> abrirComTexto(WidgetTester tester) => abrir(
+        tester,
+        ativos: () => json(200, [cartao(1), cartao(2)]),
+        respostas: {
+          'PATCH /api/cartoes/c1': (r) {
+            salvo = {...salvo, ...jsonDecode(r.body) as Map<String, dynamic>};
+            return json(200, salvo);
+          },
+          'PATCH /api/cartoes/c1/arquivar': (_) => arquivar.removeAt(0)(),
+        },
+      );
+
+      http.Response arquivou() => json(200, {...salvo, 'arquivado': true});
+
+      testWidgets('salva o texto e depois arquiva, num toque só, e a lista '
+          'recebe o texto novo', (tester) async {
+        arquivar.add(arquivou);
+        await abrirComTexto(tester);
+        await tocar(tester, find.text('Pergunta 1'));
+        await tester.enterText(campoPergunta, '  O que é NAT? ');
+        await tocar(tester, find.text('Arquivar cartão'));
+
+        expect(chamadas(), [
+          'PATCH /api/cartoes/c1',
+          'PATCH /api/cartoes/c1/arquivar',
+        ]);
+        expect(
+          jsonDecode(
+            requisicoes
+                .singleWhere(
+                  (r) => r.method == 'PATCH' && r.url.path == '/api/cartoes/c1',
+                )
+                .body,
+          ),
+          {'pergunta': 'O que é NAT?', 'resposta': 'Resposta 1'},
+        );
+        expect(find.text('Gerenciar cartões'), findsOneWidget);
+        expect(find.text('Pergunta 1'), findsNothing);
+        expect(noItem('O que é NAT?', estado('arquivado')), findsOneWidget);
+
+        await voltar(tester);
+        expect(aviso, avisoArquivado);
+      });
+
+      testWidgets('só espaços a mais nas pontas não contam como mudança', (
+        tester,
+      ) async {
+        arquivar.add(arquivou);
+        await abrirComTexto(tester);
+        await tocar(tester, find.text('Pergunta 1'));
+        await tester.enterText(campoPergunta, '  Pergunta 1 ');
+        await tocar(tester, find.text('Arquivar cartão'));
+
+        expect(chamadas(), ['PATCH /api/cartoes/c1/arquivar']);
+      });
+
+      testWidgets('com um campo vazio, mostra o erro e não envia nada', (
+        tester,
+      ) async {
+        await abrirComTexto(tester);
+        await tocar(tester, find.text('Pergunta 1'));
+        await tester.enterText(campoPergunta, '   ');
+        await tocar(tester, find.text('Arquivar cartão'));
+
+        expect(find.text('Informe a pergunta.'), findsOneWidget);
+        expect(find.text('Editar cartão'), findsOneWidget);
+        expect(chamadas(), isEmpty);
+      });
+
+      testWidgets('salvou mas arquivar falhou: a tela fica com o erro, e '
+          'voltar devolve o texto salvo, ainda ativo', (tester) async {
+        arquivar.add(() => json(500, {'mensagem': 'Erro interno.'}));
+        await abrirComTexto(tester);
+        await tocar(tester, find.text('Pergunta 1'));
+        await tester.enterText(campoPergunta, 'O que é NAT?');
+        await tocar(tester, find.text('Arquivar cartão'));
+
+        expect(find.text('Erro interno.'), findsOneWidget);
+        expect(find.text('Editar cartão'), findsOneWidget);
+        expect(find.text('Redes'), findsOneWidget);
+        expect(find.text('Arquivar cartão'), findsOneWidget);
+
+        await voltar(tester);
+        expect(find.text('Gerenciar cartões'), findsOneWidget);
+        expect(noItem('O que é NAT?', estado('ativo')), findsOneWidget);
+        expect(find.text('Pergunta 1'), findsNothing);
+
+        await voltar(tester);
+        expect(fechou, isTrue);
+        expect(aviso, isNull);
+      });
+
+      testWidgets('salvou mas arquivar falhou: tentar de novo só arquiva', (
+        tester,
+      ) async {
+        arquivar.addAll([
+          () => json(500, {'mensagem': 'Erro interno.'}),
+          arquivou,
+        ]);
+        await abrirComTexto(tester);
+        await tocar(tester, find.text('Pergunta 1'));
+        await tester.enterText(campoPergunta, 'O que é NAT?');
+        await tocar(tester, find.text('Arquivar cartão'));
+        await tocar(tester, find.text('Arquivar cartão'));
+
+        expect(chamadas(), [
+          'PATCH /api/cartoes/c1',
+          'PATCH /api/cartoes/c1/arquivar',
+          'PATCH /api/cartoes/c1/arquivar',
+        ]);
+        expect(noItem('O que é NAT?', estado('arquivado')), findsOneWidget);
+      });
+    });
+
+    testWidgets('editar outro cartão depois de arquivar não tira o aviso', (
+      tester,
+    ) async {
+      await abrir(
+        tester,
+        ativos: () => json(200, [cartao(1), cartao(2)]),
+        respostas: {
+          'PATCH /api/cartoes/c1/arquivar': (r) => mudouArquivo(r, true),
+          'PATCH /api/cartoes/c2': (r) => json(200, {
+            ...cartao(2),
+            ...jsonDecode(r.body) as Map<String, dynamic>,
+          }),
+        },
+      );
+      await tocar(tester, find.text('Pergunta 1'));
+      await tocar(tester, find.text('Arquivar cartão'));
+      await tocar(tester, find.text('Pergunta 2'));
+      await tester.enterText(campoPergunta, 'O que é NAT?');
+      await tocar(tester, find.text('Salvar'));
+
+      expect(chamadas(), [
+        'PATCH /api/cartoes/c1/arquivar',
+        'PATCH /api/cartoes/c2',
+      ]);
+      expect(find.text('O que é NAT?'), findsOneWidget);
+
+      await voltar(tester);
+      expect(fechou, isTrue);
+      expect(aviso, avisoArquivado);
+    });
+
+    testWidgets('enquanto arquiva, o formulário fica travado e nada mais '
+        'responde', (tester) async {
+      final resposta = Completer<http.Response>();
+      await abrir(
+        tester,
+        ativos: () => json(200, [cartao(1)]),
+        respostas: {'PATCH /api/cartoes/c1/arquivar': (_) => resposta.future},
+      );
+      await tocar(tester, find.text('Pergunta 1'));
+      await tester.tap(find.text('Arquivar cartão'));
+      await tester.pump();
+
+      bool somenteLeitura(Finder campo) => tester
+          .widget<TextField>(
+            find.descendant(of: campo, matching: find.byType(TextField)),
+          )
+          .readOnly;
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.text('Arquivar cartão'), findsNothing);
+      expect(somenteLeitura(campoPergunta), isTrue);
+      expect(somenteLeitura(campoResposta), isTrue);
+      expect(habilitado(tester, 'Salvar'), isFalse);
+      expect(habilitado(tester, 'Excluir cartão'), isFalse);
+
+      resposta.complete(json(200, {...cartao(1), 'arquivado': true}));
+      await tester.pumpAndSettle();
+      expect(chamadas(), ['PATCH /api/cartoes/c1/arquivar']);
+      expect(find.text('1 arquivado'), findsOneWidget);
+    });
+
     testWidgets('falha ao arquivar mostra o erro e o cartão continua ativo', (
       tester,
     ) async {
@@ -485,17 +670,22 @@ void main() {
     ) async {
       await abrir(tester, ativos: () => json(200, [cartao(1)]));
       await tocar(tester, find.text('Pergunta 1'));
-      final erro = temaFlipo.colorScheme.error;
-
+      // O link é texto pequeno: usa o tom de erro para texto, com contraste para ele.
       final link = tester.widget<TextButton>(
         find.widgetWithText(TextButton, 'Excluir cartão'),
       );
-      expect(link.style?.foregroundColor?.resolve({}), erro);
+      expect(
+        link.style?.foregroundColor?.resolve({}),
+        temaFlipo.inputDecorationTheme.errorStyle!.color,
+      );
       await tocar(tester, find.text('Excluir cartão'));
       final excluir = tester.widget<FilledButton>(
         find.widgetWithText(FilledButton, 'Excluir'),
       );
-      expect(excluir.style?.backgroundColor?.resolve({}), erro);
+      expect(
+        excluir.style?.backgroundColor?.resolve({}),
+        temaFlipo.colorScheme.error,
+      );
     });
 
     testWidgets('401 ao salvar volta ao início sem erro na tela que saiu', (
