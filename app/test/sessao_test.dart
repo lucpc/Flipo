@@ -296,6 +296,19 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Informe a senha.'), findsOneWidget);
+
+    // O máximo é em bytes UTF-8, como no backend: 40 "ç" são 40 caracteres, mas 80 bytes.
+    const mensagemDeBytes =
+        'A senha pode ter no máximo 72 bytes (letras acentuadas contam 2).';
+    await tester.enterText(campoSenha, 'ç' * 40);
+    await tester.tap(botaoCriarConta);
+    await tester.pump();
+    expect(find.text(mensagemDeBytes), findsOneWidget);
+
+    await tester.enterText(campoSenha, 'ç' * 36);
+    await tester.tap(botaoCriarConta);
+    await tester.pump();
+    expect(find.text(mensagemDeBytes), findsNothing);
     expect(requisicoes, isEmpty);
   });
 
