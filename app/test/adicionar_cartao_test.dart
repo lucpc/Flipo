@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import 'package:flipo/api/api_client.dart';
 import 'package:flipo/main.dart';
-import 'package:flipo/telas/adicionar_cartao.dart';
 import 'package:flipo/telas/autenticacao.dart';
 import 'package:flipo/telas/materias.dart';
 import 'package:flipo/telas/revisao.dart';
@@ -265,23 +264,26 @@ void main() {
   });
 
   group('a Revisão', () {
-    late FutureOr<http.Response> Function(http.Request) aoCriar;
-    late ApiClient api;
+    // O que cada chamada de `salvar` recebeu: (pergunta, resposta, origem) de cada aceito.
+    late List<List<(String, String, String)>> recebidos;
+    // Se não for null, `salvar` lança isto.
+    Object? falha;
     String? aviso;
     late bool fechou;
 
     setUp(() {
-      aoCriar = criado;
+      recebidos = [];
+      falha = null;
       aviso = null;
       fechou = false;
-      api = ApiClient(
-        httpClient: MockClient((requisicao) async {
-          requisicoes.add(requisicao);
-          expect(requisicao.url.path, '/api/materias/m1/cartoes');
-          return aoCriar(requisicao);
-        }),
-      );
     });
+
+    Future<void> salvarFalso(List<SugestaoDeCartao> aceitos) async {
+      recebidos.add([
+        for (final c in aceitos) (c.pergunta, c.resposta, c.origem),
+      ]);
+      if (falha case final erro?) throw erro;
+    }
 
     SugestaoDeCartao sugestao(String n, {String origem = 'ia'}) =>
         SugestaoDeCartao(
@@ -310,7 +312,7 @@ void main() {
                     MaterialPageRoute(
                       builder: (_) => TelaRevisao(
                         sugestoes: sugestoes,
-                        salvar: salvarUmPorUm(api, 'm1'),
+                        salvar: salvarFalso,
                       ),
                     ),
                   );
@@ -337,6 +339,7 @@ void main() {
 
     testWidgets('aceitar, descartar e editar mudam o estado, o resumo e o '
         'botão', (tester) async {
+      final semantica = tester.ensureSemantics();
       await abrirRevisao(tester, [
         sugestao('1'),
         sugestao('2'),
@@ -358,7 +361,7 @@ void main() {
       await tocar(tester, 'Pergunta 1', 'Aceitar');
       expect(estadoDe('Pergunta 1', 'aceito'), findsOneWidget);
       expect(habilitado(tester, acao('Pergunta 1', 'Aceitar')), isFalse);
-      // Desabilitado, mas preenchido como selecionado, não acinzentado.
+      // Desabilitado, mas preenchido e anunciado como selecionado, não acinzentado.
       Color? fundo(String pergunta) => tester
           .widget<ButtonStyleButton>(acao(pergunta, 'Aceitar'))
           .style
@@ -366,6 +369,14 @@ void main() {
           ?.resolve({WidgetState.disabled});
       expect(fundo('Pergunta 1'), temaFlipo.colorScheme.primary);
       expect(fundo('Pergunta 2'), isNull);
+      expect(
+        tester.getSemantics(acao('Pergunta 1', 'Aceitar')),
+        isSemantics(label: 'Aceitar', isButton: true, isSelected: true),
+      );
+      expect(
+        tester.getSemantics(acao('Pergunta 2', 'Aceitar')),
+        isSemantics(label: 'Aceitar', isButton: true, isSelected: false),
+      );
       expect(find.text('1 aceito · 2 pendentes'), findsOneWidget);
       expect(habilitado(tester, botao('Confirmar revisão (1 cartão)')), isTrue);
 
@@ -402,7 +413,32 @@ void main() {
       await tocar(tester, 'Pergunta 1', 'Descartar');
       expect(find.text('1 aceito · 2 descartados'), findsOneWidget);
       expect(find.text('Confirmar revisão (1 cartão)'), findsOneWidget);
-      expect(corposDosPosts(), isEmpty);
+      expect(recebidos, isEmpty);
+      semantica.dispose();
+    });
+
+    testWidgets('cancelar a edição não muda nada, e editar um descartado o '
+        'aceita', (tester) async {
+      await abrirRevisao(tester, [sugestao('1')]);
+      await tocar(tester, 'Pergunta 1', 'Descartar');
+
+      await tocar(tester, 'Pergunta 1', 'Editar');
+      await tester.enterText(campoPergunta, 'Outra pergunta');
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      expect(estadoDe('Pergunta 1', 'descartado'), findsOneWidget);
+      expect(find.text('Outra pergunta'), findsNothing);
+      expect(find.text('1 descartado'), findsOneWidget);
+
+      await tocar(tester, 'Pergunta 1', 'Editar');
+      await tester.enterText(campoPergunta, 'Outra pergunta');
+      await tester.tap(botao('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(estadoDe('Outra pergunta', 'editado e aceito'), findsOneWidget);
+      expect(find.text('1 aceito'), findsOneWidget);
+      expect(habilitado(tester, botao('Confirmar revisão (1 cartão)')), isTrue);
     });
 
     testWidgets('confirmar salva só os aceitos, em ordem, e devolve o aviso no '
@@ -411,7 +447,7 @@ void main() {
         sugestao('1'),
         sugestao('2'),
         sugestao('3'),
-        sugestao('4'),
+        sugestao('4', origem: 'manual'),
       ]);
       await tocar(tester, 'Pergunta 1', 'Aceitar');
       await tocar(tester, 'Pergunta 2', 'Descartar');
@@ -424,86 +460,49 @@ void main() {
       await tester.tap(botao('Confirmar revisão (2 cartões)'));
       await tester.pumpAndSettle();
 
-      expect(corposDosPosts(), [
-        {'pergunta': 'Pergunta 1', 'resposta': 'Resposta 1'},
-        {'pergunta': 'Pergunta 4', 'resposta': 'Resposta 4, revista'},
+      // Uma chamada só, com os aceitos; a edição mantém a origem.
+      expect(recebidos, [
+        [
+          ('Pergunta 1', 'Resposta 1', 'ia'),
+          ('Pergunta 4', 'Resposta 4, revista', 'manual'),
+        ],
       ]);
       expect(fechou, isTrue);
       expect(aviso, '2 cartões salvos em Estudar cartões');
     });
 
-    testWidgets('falha no meio: os salvos saem da lista e os outros ficam para '
-        'tentar de novo', (tester) async {
-      var posts = 0;
-      aoCriar = (requisicao) => ++posts == 2
-          ? json(500, {'mensagem': 'Erro interno.'})
-          : criado(requisicao);
+    testWidgets('falha ao salvar mostra o erro, deixa tudo aceito e tentar de '
+        'novo envia os mesmos', (tester) async {
+      falha = ApiException(500, 'Erro interno.');
       await abrirRevisao(tester, [sugestao('1'), sugestao('2'), sugestao('3')]);
-      for (final n in ['1', '2', '3']) {
-        await tocar(tester, 'Pergunta $n', 'Aceitar');
-      }
-
-      await tester.tap(botao('Confirmar revisão (3 cartões)'));
-      await tester.pumpAndSettle();
-
-      expect(fechou, isFalse);
-      expect(find.text('Revisar sugestões (2)'), findsOneWidget);
-      expect(find.text('Pergunta 1'), findsNothing);
-      expect(estadoDe('Pergunta 2', 'aceito'), findsOneWidget);
-      expect(estadoDe('Pergunta 3', 'aceito'), findsOneWidget);
-      expect(
-        find.text(
-          'Salvos 1 de 3 cartões. Os outros continuam aqui para tentar de '
-          'novo. Erro interno.',
-        ),
-        findsOneWidget,
-      );
+      await tocar(tester, 'Pergunta 1', 'Aceitar');
+      await tocar(tester, 'Pergunta 3', 'Aceitar');
 
       await tester.tap(botao('Confirmar revisão (2 cartões)'));
-      await tester.pumpAndSettle();
-
-      expect(corposDosPosts(), [
-        for (final n in ['1', '2', '2', '3'])
-          {'pergunta': 'Pergunta $n', 'resposta': 'Resposta $n'},
-      ]);
-      expect(fechou, isTrue);
-      // Conta as duas tentativas.
-      expect(aviso, '3 cartões salvos em Estudar cartões');
-    });
-
-    testWidgets('falha logo no primeiro mostra só o erro', (tester) async {
-      aoCriar = (_) => json(500, {'mensagem': 'Erro interno.'});
-      await abrirRevisao(tester, [sugestao('1')]);
-      await tocar(tester, 'Pergunta 1', 'Aceitar');
-
-      await tester.tap(botao('Confirmar revisão (1 cartão)'));
       await tester.pumpAndSettle();
 
       expect(fechou, isFalse);
       expect(find.text('Erro interno.'), findsOneWidget);
+      expect(find.text('Revisar sugestões (3)'), findsOneWidget);
       expect(estadoDe('Pergunta 1', 'aceito'), findsOneWidget);
-      expect(habilitado(tester, botao('Confirmar revisão (1 cartão)')), isTrue);
-    });
+      expect(estadoDe('Pergunta 2', 'pendente'), findsOneWidget);
+      expect(estadoDe('Pergunta 3', 'aceito'), findsOneWidget);
+      expect(
+        habilitado(tester, botao('Confirmar revisão (2 cartões)')),
+        isTrue,
+      );
 
-    testWidgets('sair depois de uma falha no meio devolve o aviso dos que '
-        'foram salvos', (tester) async {
-      var posts = 0;
-      aoCriar = (requisicao) => ++posts == 2
-          ? json(500, {'mensagem': 'Erro interno.'})
-          : criado(requisicao);
-      await abrirRevisao(tester, [sugestao('1'), sugestao('2')]);
-      await tocar(tester, 'Pergunta 1', 'Aceitar');
-      await tocar(tester, 'Pergunta 2', 'Aceitar');
+      falha = null;
       await tester.tap(botao('Confirmar revisão (2 cartões)'));
       await tester.pumpAndSettle();
 
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Sair'));
-      await tester.pumpAndSettle();
-
+      final aceitos = [
+        ('Pergunta 1', 'Resposta 1', 'ia'),
+        ('Pergunta 3', 'Resposta 3', 'ia'),
+      ];
+      expect(recebidos, [aceitos, aceitos]);
       expect(fechou, isTrue);
-      expect(aviso, '1 cartão salvo em Estudar cartões');
+      expect(aviso, '2 cartões salvos em Estudar cartões');
     });
 
     testWidgets('sair com aceitos não salvos pede confirmação', (tester) async {
@@ -524,7 +523,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(fechou, isTrue);
       expect(aviso, isNull);
-      expect(corposDosPosts(), isEmpty);
+      expect(recebidos, isEmpty);
     });
 
     testWidgets('sair sem aceitos não pergunta', (tester) async {

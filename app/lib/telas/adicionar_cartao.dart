@@ -140,7 +140,11 @@ class _TelaCriarManual extends StatelessWidget {
               origem: 'manual',
             ),
           ],
-          salvar: salvarUmPorUm(api, materiaId),
+          salvar: (cartoes) => api.criarCartao(
+            materiaId,
+            cartoes.single.pergunta,
+            cartoes.single.resposta,
+          ),
           titulo: 'Revisar cartão',
           lembrete: 'Nada foi salvo ainda',
           comecarAceitas: true,
@@ -184,13 +188,3 @@ class _TelaCriarManual extends StatelessWidget {
     );
   }
 }
-
-/// Salva os aceitos da Revisão com um `POST .../cartoes` por cartão, em ordem, parando no primeiro
-/// erro. Serve à criação manual; a geração por IA usa o `lote`.
-SalvarCartoes salvarUmPorUm(ApiClient api, String materiaId) =>
-    (cartoes, aoSalvar) async {
-      for (final cartao in cartoes) {
-        await api.criarCartao(materiaId, cartao.pergunta, cartao.resposta);
-        aoSalvar(cartao);
-      }
-    };

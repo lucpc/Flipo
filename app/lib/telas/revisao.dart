@@ -21,17 +21,10 @@ class SugestaoDeCartao {
   final String origem;
 }
 
-/// Grava [cartoes] (os aceitos, na ordem da tela) e chama [aoSalvar] com cada um assim que ele
-/// estiver salvo. Se falhar no meio, lança o erro: os já passados a [aoSalvar] saem da Revisão, e
-/// os outros ficam para tentar de novo.
-///
-/// A criação manual salva um por vez (`POST .../cartoes`); a da IA vai salvar todos de uma vez
-/// (`POST .../cartoes/lote`) e chamar [aoSalvar] com todos no fim.
-typedef SalvarCartoes =
-    Future<void> Function(
-      List<SugestaoDeCartao> cartoes,
-      void Function(SugestaoDeCartao salvo) aoSalvar,
-    );
+/// Grava os [aceitos] (na ordem da tela) de uma vez: tudo ou nada. Se falha, lança o erro e nada
+/// foi salvo. A criação manual tem sempre um cartão só (`POST .../cartoes`); a da IA vai usar o
+/// `POST .../cartoes/lote`.
+typedef SalvarCartoes = Future<void> Function(List<SugestaoDeCartao> aceitos);
 
 enum _Estado {
   pendente('pendente'),
@@ -91,18 +84,11 @@ class _TelaRevisaoState extends State<TelaRevisao> {
     for (final s in widget.sugestoes)
       _Item(s, widget.comecarAceitas ? _Estado.aceito : _Estado.pendente),
   ];
-  // Quantos já foram salvos desta tela, somando as tentativas.
-  var _salvos = 0;
   bool _salvando = false;
   String? _erro;
 
   int _contar(bool Function(_Estado) teste) =>
       _itens.where((i) => teste(i.estado)).length;
-
-  String? get _aviso => _salvos == 0
-      ? null
-      : '${_contagem(_salvos, 'cartão salvo', 'cartões salvos')} '
-            'em Estudar cartões';
 
   Future<void> _editar(_Item item) async {
     final editado = await Navigator.of(context).push<SugestaoDeCartao>(
@@ -126,30 +112,23 @@ class _TelaRevisaoState extends State<TelaRevisao> {
       _erro = null;
     });
 
-    var salvosAgora = 0;
     try {
-      await widget.salvar(aceitos, (salvo) {
-        // Num 401 no meio, o app já está voltando ao login e esta tela pode ter saído.
-        if (!mounted) return;
-        setState(() {
-          _itens.removeWhere((i) => identical(i.sugestao, salvo));
-          salvosAgora++;
-          _salvos++;
-        });
-      });
+      await widget.salvar(aceitos);
     } catch (e) {
+      // Num 401 o app já está voltando ao login, e esta tela pode ter saído.
       if (!mounted) return;
+      // Nada foi salvo: os cartões seguem aceitos, prontos para tentar de novo.
       setState(() {
         _salvando = false;
-        // Os salvos já saíram da lista; os que faltam seguem aceitos, prontos para tentar de novo.
-        _erro = salvosAgora == 0
-            ? textoDoErro(e)
-            : 'Salvos $salvosAgora de ${aceitos.length} cartões. Os outros '
-                  'continuam aqui para tentar de novo. ${textoDoErro(e)}';
+        _erro = textoDoErro(e);
       });
       return;
     }
-    if (mounted) Navigator.of(context).pop(_aviso);
+    if (!mounted) return;
+    Navigator.of(context).pop(
+      '${_contagem(aceitos.length, 'cartão salvo', 'cartões salvos')} '
+      'em Estudar cartões',
+    );
   }
 
   /// Voltar: com aceitos ainda não salvos, confirma antes, porque a revisão se perde.
@@ -178,8 +157,7 @@ class _TelaRevisaoState extends State<TelaRevisao> {
       // null: fechou o diálogo tocando fora, ou um 401 fechou tudo.
       if (sair != true || !mounted) return;
     }
-    // Se uma tentativa anterior salvou parte, a matéria ainda mostra o aviso deles.
-    Navigator.of(context).pop(_aviso);
+    Navigator.of(context).pop();
   }
 
   String _resumo() => [
@@ -330,17 +308,23 @@ class _CartaoSugestao extends StatelessWidget {
             OverflowBar(
               alignment: MainAxisAlignment.end,
               children: [
-                TextButton.icon(
-                  onPressed: aoAceitar,
-                  // Já aceito, fica desabilitado mas preenchido, como selecionado.
-                  style: estado.foiAceito
-                      ? TextButton.styleFrom(
-                          disabledBackgroundColor: cores.primary,
-                          disabledForegroundColor: cores.onPrimary,
-                        )
-                      : null,
-                  icon: const Icon(Icons.check),
-                  label: const Text('Aceitar'),
+                // Já aceito, fica desabilitado mas preenchido, e o leitor de tela o anuncia como
+                // selecionado. O MergeSemantics põe o "selecionado" no próprio nó do botão.
+                MergeSemantics(
+                  child: Semantics(
+                    selected: estado.foiAceito,
+                    child: TextButton.icon(
+                      onPressed: aoAceitar,
+                      style: estado.foiAceito
+                          ? TextButton.styleFrom(
+                              disabledBackgroundColor: cores.primary,
+                              disabledForegroundColor: cores.onPrimary,
+                            )
+                          : null,
+                      icon: const Icon(Icons.check),
+                      label: const Text('Aceitar'),
+                    ),
+                  ),
                 ),
                 TextButton.icon(
                   onPressed: aoEditar,
