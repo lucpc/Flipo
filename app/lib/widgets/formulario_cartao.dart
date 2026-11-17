@@ -10,6 +10,8 @@ class FormularioCartao extends StatefulWidget {
     this.pergunta = '',
     this.resposta = '',
     required this.rotulo,
+    this.icone,
+    this.ajuda,
     required this.aoConfirmar,
   });
 
@@ -17,8 +19,12 @@ class FormularioCartao extends StatefulWidget {
   final String pergunta;
   final String resposta;
 
-  /// Texto do botão.
+  /// Texto do botão e, se houver, o ícone depois dele.
   final String rotulo;
+  final IconData? icone;
+
+  /// Texto de apoio discreto logo acima do botão.
+  final String? ajuda;
 
   /// Recebe os dois textos já sem espaços nas pontas, só quando ambos estão preenchidos.
   final void Function(String pergunta, String resposta) aoConfirmar;
@@ -51,6 +57,9 @@ class _FormularioCartaoState extends State<FormularioCartao> {
 
   @override
   Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    final ajuda = widget.ajuda;
+    final icone = widget.icone;
     return Form(
       key: _formulario,
       child: Column(
@@ -77,7 +86,22 @@ class _FormularioCartaoState extends State<FormularioCartao> {
             validator: _obrigatorio('Informe a resposta.'),
           ),
           const SizedBox(height: 24),
-          FilledButton(onPressed: _confirmar, child: Text(widget.rotulo)),
+          if (ajuda case final ajuda?) ...[
+            Text(
+              ajuda,
+              textAlign: TextAlign.center,
+              style: tema.textTheme.bodyMedium?.copyWith(
+                color: tema.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          FilledButton.icon(
+            onPressed: _confirmar,
+            icon: icone == null ? null : Icon(icone),
+            iconAlignment: IconAlignment.end,
+            label: Text(widget.rotulo),
+          ),
         ],
       ),
     );

@@ -47,28 +47,50 @@ enum _Estado {
 }
 
 class _Item {
-  _Item(this.sugestao);
+  _Item(this.sugestao, this.estado);
 
   SugestaoDeCartao sugestao;
-  _Estado estado = _Estado.pendente;
+  _Estado estado;
 }
 
 /// Revisão (docs/01-fluxos-de-usuario.md, seção 4c, quadros 04b, 04e e 04f do Figma), comum à
 /// criação manual e à geração por IA. Nada é salvo antes de "Confirmar revisão", e só os aceitos.
 /// Fecha devolvendo o aviso para a tela da matéria ("N cartões salvos em Estudar cartões"), ou
 /// null se nada foi salvo.
+///
+/// Os padrões são os das sugestões da IA (04e). A criação manual (04b) troca o cabeçalho e já
+/// abre com o cartão aceito: quem acabou de digitá-lo não precisa aceitar de novo.
 class TelaRevisao extends StatefulWidget {
-  const TelaRevisao({super.key, required this.sugestoes, required this.salvar});
+  const TelaRevisao({
+    super.key,
+    required this.sugestoes,
+    required this.salvar,
+    this.titulo = 'Revisar sugestões',
+    this.lembrete = 'Nada foi salvo ainda — aceite, edite ou descarte',
+    this.comecarAceitas = false,
+  });
 
   final List<SugestaoDeCartao> sugestoes;
   final SalvarCartoes salvar;
+
+  /// Título do cabeçalho, seguido de quantos cartões há na tela: "Revisar sugestões (N)".
+  final String titulo;
+
+  /// Texto de apoio abaixo do título.
+  final String lembrete;
+
+  /// Se as sugestões entram aceitas em vez de pendentes.
+  final bool comecarAceitas;
 
   @override
   State<TelaRevisao> createState() => _TelaRevisaoState();
 }
 
 class _TelaRevisaoState extends State<TelaRevisao> {
-  late final _itens = [for (final s in widget.sugestoes) _Item(s)];
+  late final _itens = [
+    for (final s in widget.sugestoes)
+      _Item(s, widget.comecarAceitas ? _Estado.aceito : _Estado.pendente),
+  ];
   // Quantos já foram salvos desta tela, somando as tentativas.
   var _salvos = 0;
   bool _salvando = false;
@@ -176,7 +198,7 @@ class _TelaRevisaoState extends State<TelaRevisao> {
         if (!didPop) _sair();
       },
       child: Scaffold(
-        appBar: AppBar(title: Text('Revisar sugestões (${_itens.length})')),
+        appBar: AppBar(title: Text('${widget.titulo} (${_itens.length})')),
         body: SafeArea(
           child: ColunaCentral(
             child: Column(
@@ -184,10 +206,7 @@ class _TelaRevisaoState extends State<TelaRevisao> {
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-                  child: Text(
-                    'Nada foi salvo ainda — aceite, edite ou descarte',
-                    style: _textoDeApoio(tema),
-                  ),
+                  child: Text(widget.lembrete, style: _textoDeApoio(tema)),
                 ),
                 Expanded(
                   child: ListView(
@@ -313,6 +332,13 @@ class _CartaoSugestao extends StatelessWidget {
               children: [
                 TextButton.icon(
                   onPressed: aoAceitar,
+                  // Já aceito, fica desabilitado mas preenchido, como selecionado.
+                  style: estado.foiAceito
+                      ? TextButton.styleFrom(
+                          disabledBackgroundColor: cores.primary,
+                          disabledForegroundColor: cores.onPrimary,
+                        )
+                      : null,
                   icon: const Icon(Icons.check),
                   label: const Text('Aceitar'),
                 ),

@@ -44,8 +44,11 @@ void main() {
       if (r.method == 'POST') jsonDecode(r.body),
   ];
 
-  Finder botao(String rotulo) =>
-      find.ancestor(of: find.text(rotulo), matching: find.byType(FilledButton));
+  // `FilledButton.icon` cria uma subclasse, que `find.byType` não acha.
+  Finder botao(String rotulo) => find.ancestor(
+    of: find.text(rotulo),
+    matching: find.byWidgetPredicate((w) => w is FilledButton),
+  );
 
   bool habilitado(WidgetTester tester, Finder f) =>
       tester.widget<ButtonStyleButton>(f).onPressed != null;
@@ -114,7 +117,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.enterText(campoPergunta, '  O que é TCP? ');
       await tester.enterText(campoResposta, ' Um protocolo confiável. ');
-      await tester.tap(botao('Revisar'));
+      await tester.tap(botao('Ir para revisão'));
       await tester.pumpAndSettle();
     }
 
@@ -147,13 +150,19 @@ void main() {
       expect(find.text('Como você quer criar?'), findsOneWidget);
     });
 
-    testWidgets('o formulário manual valida e leva à Revisão com um cartão '
-        'pendente, sem salvar nada', (tester) async {
+    testWidgets('o formulário manual valida e leva à Revisão com o cartão já '
+        'aceito, sem salvar nada', (tester) async {
       await abrirAdicionar(tester, {'GET /api/materias': listagem()});
       await tester.tap(find.text('Criar manualmente'));
       await tester.pumpAndSettle();
+      expect(find.text('Novo cartão'), findsOneWidget);
+      expect(find.text('Criação manual'), findsOneWidget);
+      expect(
+        find.text('Você confere o cartão na revisão antes de salvar.'),
+        findsOneWidget,
+      );
 
-      await tester.tap(botao('Revisar'));
+      await tester.tap(botao('Ir para revisão'));
       await tester.pump();
       expect(find.text('Informe a pergunta.'), findsOneWidget);
       expect(find.text('Informe a resposta.'), findsOneWidget);
@@ -161,36 +170,36 @@ void main() {
       // Só espaços não conta.
       await tester.enterText(campoPergunta, '   ');
       await tester.enterText(campoResposta, 'Um protocolo confiável.');
-      await tester.tap(botao('Revisar'));
+      await tester.tap(botao('Ir para revisão'));
       await tester.pump();
       expect(find.text('Informe a pergunta.'), findsOneWidget);
       expect(find.text('Informe a resposta.'), findsNothing);
-      expect(find.text('Revisar sugestões (1)'), findsNothing);
+      expect(find.text('Revisar cartão (1)'), findsNothing);
 
       await tester.enterText(campoPergunta, '  O que é TCP? ');
-      await tester.tap(botao('Revisar'));
+      await tester.tap(botao('Ir para revisão'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Revisar sugestões (1)'), findsOneWidget);
-      expect(
-        find.text('Nada foi salvo ainda — aceite, edite ou descarte'),
-        findsOneWidget,
-      );
+      expect(find.text('Revisar cartão (1)'), findsOneWidget);
+      expect(find.text('Nada foi salvo ainda'), findsOneWidget);
       expect(find.text('O que é TCP?'), findsOneWidget);
       expect(find.text('Um protocolo confiável.'), findsOneWidget);
       expect(find.text('manual'), findsOneWidget);
-      expect(find.text('pendente'), findsOneWidget);
-      expect(find.text('1 pendente'), findsOneWidget);
-      final confirmar = botao('Confirmar revisão (0 cartões)');
-      expect(habilitado(tester, confirmar), isFalse);
+      expect(estadoDe('O que é TCP?', 'aceito'), findsOneWidget);
+      expect(find.text('1 aceito'), findsOneWidget);
+      final confirmar = botao('Confirmar revisão (1 cartão)');
+      expect(habilitado(tester, confirmar), isTrue);
       expect(corposDosPosts(), isEmpty);
 
-      // Sem aceitos, volta sem perguntar, e o formulário continua preenchido.
+      // Voltar pede confirmação (o cartão aceito se perderia), e o formulário continua
+      // preenchido.
       await tester.pageBack();
       await tester.pumpAndSettle();
-      expect(find.byType(AlertDialog), findsNothing);
-      expect(find.text('Criar manualmente'), findsOneWidget);
+      await tester.tap(find.text('Sair'));
+      await tester.pumpAndSettle();
+      expect(find.text('Novo cartão'), findsOneWidget);
       expect(find.text('  O que é TCP? '), findsOneWidget);
+      expect(corposDosPosts(), isEmpty);
     });
 
     testWidgets('confirmar salva o aceito, volta para a matéria e mostra o '
@@ -201,10 +210,7 @@ void main() {
       });
       await irParaRevisao(tester);
 
-      await tester.tap(acao('O que é TCP?', 'Aceitar'));
-      await tester.pumpAndSettle();
-      expect(estadoDe('O que é TCP?', 'aceito'), findsOneWidget);
-      expect(find.text('1 aceito'), findsOneWidget);
+      // Sem tocar em Aceitar: o cartão manual já chega aceito.
       await tester.tap(botao('Confirmar revisão (1 cartão)'));
       await tester.pumpAndSettle();
 
@@ -224,8 +230,6 @@ void main() {
         'POST /api/materias/m1/cartoes': (_) => http.Response('', 401),
       });
       await irParaRevisao(tester);
-      await tester.tap(acao('O que é TCP?', 'Aceitar'));
-      await tester.pumpAndSettle();
       await tester.tap(botao('Confirmar revisão (1 cartão)'));
       await tester.pumpAndSettle();
 
@@ -243,8 +247,6 @@ void main() {
         'POST /api/materias/m1/cartoes': (_) => resposta.future,
       });
       await irParaRevisao(tester);
-      await tester.tap(acao('O que é TCP?', 'Aceitar'));
-      await tester.pumpAndSettle();
       await tester.tap(botao('Confirmar revisão (1 cartão)'));
       await tester.pump();
 
@@ -341,6 +343,10 @@ void main() {
         sugestao('3', origem: 'manual'),
       ]);
       expect(find.text('Revisar sugestões (3)'), findsOneWidget);
+      expect(
+        find.text('Nada foi salvo ainda — aceite, edite ou descarte'),
+        findsOneWidget,
+      );
       expect(find.text('IA'), findsNWidgets(2));
       expect(find.text('manual'), findsOneWidget);
       expect(find.text('3 pendentes'), findsOneWidget);
@@ -352,6 +358,14 @@ void main() {
       await tocar(tester, 'Pergunta 1', 'Aceitar');
       expect(estadoDe('Pergunta 1', 'aceito'), findsOneWidget);
       expect(habilitado(tester, acao('Pergunta 1', 'Aceitar')), isFalse);
+      // Desabilitado, mas preenchido como selecionado, não acinzentado.
+      Color? fundo(String pergunta) => tester
+          .widget<ButtonStyleButton>(acao(pergunta, 'Aceitar'))
+          .style
+          ?.backgroundColor
+          ?.resolve({WidgetState.disabled});
+      expect(fundo('Pergunta 1'), temaFlipo.colorScheme.primary);
+      expect(fundo('Pergunta 2'), isNull);
       expect(find.text('1 aceito · 2 pendentes'), findsOneWidget);
       expect(habilitado(tester, botao('Confirmar revisão (1 cartão)')), isTrue);
 

@@ -117,8 +117,8 @@ class _Caminho extends StatelessWidget {
   }
 }
 
-/// Criação manual (quadro 04a): pergunta e resposta, que seguem para a Revisão como um cartão só
-/// (04b). Voltar da Revisão sem salvar devolve o formulário como estava.
+/// Criação manual (quadro 04a): pergunta e resposta, que seguem para a Revisão como um cartão só,
+/// já aceito (04b). Voltar da Revisão sem salvar devolve o formulário como estava.
 class _TelaCriarManual extends StatelessWidget {
   const _TelaCriarManual({required this.api, required this.materiaId});
 
@@ -141,6 +141,9 @@ class _TelaCriarManual extends StatelessWidget {
             ),
           ],
           salvar: salvarUmPorUm(api, materiaId),
+          titulo: 'Revisar cartão',
+          lembrete: 'Nada foi salvo ainda',
+          comecarAceitas: true,
         ),
       ),
     );
@@ -149,16 +152,31 @@ class _TelaCriarManual extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tema = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Criar manualmente')),
+      appBar: AppBar(title: const Text('Novo cartão')),
       body: SafeArea(
         child: ColunaCentral(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: FormularioCartao(
-              rotulo: 'Revisar',
-              aoConfirmar: (pergunta, resposta) =>
-                  _revisar(context, pergunta, resposta),
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Criação manual',
+                  style: tema.textTheme.bodyMedium?.copyWith(
+                    color: tema.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FormularioCartao(
+                  rotulo: 'Ir para revisão',
+                  icone: Icons.chevron_right,
+                  ajuda: 'Você confere o cartão na revisão antes de salvar.',
+                  aoConfirmar: (pergunta, resposta) =>
+                      _revisar(context, pergunta, resposta),
+                ),
+              ],
             ),
           ),
         ),
