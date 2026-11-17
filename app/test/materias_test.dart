@@ -467,14 +467,13 @@ void main() {
       final apagar = tester.getCenter(find.text('Apagar matéria')).dy;
       expect(editar < gerenciar, isTrue);
       expect(gerenciar < divisoria && divisoria < apagar, isTrue);
-      final erro = Theme.of(
-        tester.element(find.text('Apagar matéria')),
-      ).colorScheme.error;
+      final tema = Theme.of(tester.element(find.text('Apagar matéria')));
       final itemApagar = tester.widget<ListTile>(
         find.widgetWithText(ListTile, 'Apagar matéria'),
       );
-      expect(itemApagar.textColor, erro);
-      expect(itemApagar.iconColor, erro);
+      // O texto usa a cor do texto de erro, com contraste para texto pequeno; o ícone, o love.
+      expect(itemApagar.textColor, tema.inputDecorationTheme.errorStyle!.color);
+      expect(itemApagar.iconColor, tema.colorScheme.error);
 
       await tester.tap(find.text('Gerenciar cartões'));
       await tester.pumpAndSettle();
@@ -654,7 +653,7 @@ void main() {
 
       for (final (nome, texto) in [
         ('Redes', '"Redes" e seu cartão serão apagados.'),
-        ('Física', '"Física" será apagada.'),
+        ('Física', 'A matéria "Física" será apagada.'),
       ]) {
         await tester.tap(find.text(nome));
         await tester.pumpAndSettle();
@@ -670,6 +669,61 @@ void main() {
         await tester.pageBack();
         await tester.pumpAndSettle();
       }
+    });
+
+    testWidgets('enquanto apaga, o diálogo não fecha', (tester) async {
+      final resposta = Completer<http.Response>();
+      await abrirApp(tester, {
+        'GET /api/materias': emSequencia([
+          () => json(200, [materia('m1', 'Redes', 6, 2)]),
+          () => json(200, []),
+        ]),
+        'DELETE /api/materias/m1': () => resposta.future,
+      });
+      await tester.tap(find.text('Redes'));
+      await tester.pumpAndSettle();
+      await abrirMenu(tester);
+      await tester.tap(find.text('Apagar matéria'));
+      await tester.pumpAndSettle();
+      await tester.tap(botao('Apagar'));
+      await avancar(tester);
+
+      // Voltar do sistema e tocar fora do diálogo.
+      await tester.binding.handlePopRoute();
+      await avancar(tester);
+      await tester.tapAt(const Offset(5, 5));
+      await avancar(tester);
+      expect(find.byType(AlertDialog), findsOneWidget);
+
+      resposta.complete(http.Response('', 204));
+      await tester.pumpAndSettle();
+      expect(find.text('Minhas matérias'), findsOneWidget);
+      expect(find.text('Nenhuma matéria ainda'), findsOneWidget);
+    });
+
+    testWidgets('404 ao apagar: já não existia, então volta para a lista como '
+        'se tivesse apagado', (tester) async {
+      await abrirApp(tester, {
+        'GET /api/materias': emSequencia([
+          () => json(200, [materia('m1', 'Redes', 6, 2)]),
+          () => json(200, []),
+        ]),
+        'DELETE /api/materias/m1': () =>
+            json(404, {'mensagem': 'Matéria não encontrada.'}),
+      });
+      await tester.tap(find.text('Redes'));
+      await tester.pumpAndSettle();
+      await abrirMenu(tester);
+      await tester.tap(find.text('Apagar matéria'));
+      await tester.pumpAndSettle();
+      await tester.tap(botao('Apagar'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.text('Matéria não encontrada.'), findsNothing);
+      expect(find.text('Minhas matérias'), findsOneWidget);
+      expect(find.text('Nenhuma matéria ainda'), findsOneWidget);
+      expect(listagens(), 2);
     });
 
     testWidgets('erro ao apagar fica no diálogo, e cancelar continua na '
@@ -716,6 +770,27 @@ void main() {
       expect(find.byType(TelaLogin), findsOneWidget);
       expect(find.text('Sua sessão expirou. Entre de novo.'), findsOneWidget);
       // Só a listagem de quando o app abriu: nada de recarga sem token.
+      expect(listagens(), 1);
+    });
+
+    testWidgets('401 ao renomear fecha tudo e volta ao login', (tester) async {
+      await abrirApp(tester, {
+        'GET /api/materias': () => json(200, [materia('m1', 'Redes', 6, 2)]),
+        'PATCH /api/materias/m1': () => http.Response('', 401),
+      });
+      await tester.tap(find.text('Redes'));
+      await tester.pumpAndSettle();
+      await abrirMenu(tester);
+      await tester.tap(find.text('Editar matéria'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Redes de Computadores');
+      await tester.tap(botao('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.byType(TelaLogin), findsOneWidget);
+      expect(find.text('Sua sessão expirou. Entre de novo.'), findsOneWidget);
       expect(listagens(), 1);
     });
   });

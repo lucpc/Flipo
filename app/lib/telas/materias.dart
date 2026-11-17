@@ -390,7 +390,10 @@ class _TelaMateriaState extends State<TelaMateria> {
                   leading: const Icon(Icons.close),
                   title: const Text('Apagar matéria'),
                   iconColor: tema.colorScheme.error,
-                  textColor: tema.colorScheme.error,
+                  // O love puro não dá contraste para texto sobre o menu; o do texto de erro dá.
+                  textColor:
+                      tema.inputDecorationTheme.errorStyle?.color ??
+                      tema.colorScheme.error,
                 ),
               ),
             ],
@@ -471,8 +474,8 @@ class _TelaMateriaState extends State<TelaMateria> {
   }
 }
 
-/// Confirma e apaga a matéria (quadro 03b). Fecha devolvendo true depois de apagar; num erro,
-/// fica aberto mostrando-o. Fechado de outro jeito (cancelar, ou um 401 que leva ao login),
+/// Confirma e apaga a matéria (quadro 03b). Fecha devolvendo true depois de apagar, ou se ela já
+/// não existia; num erro, fica aberto mostrando-o. Fechado de outro jeito (cancelar, ou um 401 que leva ao login),
 /// devolve null.
 class _DialogoApagarMateria extends StatefulWidget {
   const _DialogoApagarMateria({required this.api, required this.materia});
@@ -496,14 +499,18 @@ class _DialogoApagarMateriaState extends State<_DialogoApagarMateria> {
     });
     try {
       await widget.api.apagarMateria(widget.materia.id);
-      if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _apagando = false;
-        _erro = textoDoErro(e);
-      });
+      // 404: já tinha sido apagada (ex.: em outro aparelho), que é o que o usuário queria.
+      if (e is! ApiException || e.status != 404) {
+        if (!mounted) return;
+        setState(() {
+          _apagando = false;
+          _erro = textoDoErro(e);
+        });
+        return;
+      }
     }
+    if (mounted) Navigator.of(context).pop(true);
   }
 
   @override
@@ -512,7 +519,7 @@ class _DialogoApagarMateriaState extends State<_DialogoApagarMateria> {
     final materia = widget.materia;
     final cartoes = materia.totalAtivos + materia.totalArquivados;
     final oQue = switch (cartoes) {
-      0 => '"${materia.nome}" será apagada.',
+      0 => 'A matéria "${materia.nome}" será apagada.',
       1 => '"${materia.nome}" e seu cartão serão apagados.',
       _ => '"${materia.nome}" e seus $cartoes cartões serão apagados.',
     };
