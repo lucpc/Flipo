@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -152,10 +154,10 @@ class TelaCriarConta extends StatefulWidget {
 }
 
 class _TelaCriarContaState extends State<TelaCriarConta> {
-  // Mesmos limites do RegistroRequest do backend: fora deles, a mensagem de validação do Spring
-  // chegaria crua ao usuário ("senha: size must be between 8 and 72").
+  // Mesmos limites do RegistroRequest do backend: no mínimo 8 caracteres e no máximo 72 bytes em
+  // UTF-8, o limite do BCrypt (letras acentuadas ocupam 2 bytes).
   static const _senhaMinima = 8;
-  static const _senhaMaxima = 72;
+  static const _senhaMaximaEmBytes = 72;
 
   final _formulario = GlobalKey<FormState>();
   final _nome = TextEditingController();
@@ -217,8 +219,8 @@ class _TelaCriarContaState extends State<TelaCriarConta> {
     if (valor.length < _senhaMinima) {
       return 'A senha precisa ter pelo menos $_senhaMinima caracteres.';
     }
-    if (valor.length > _senhaMaxima) {
-      return 'A senha pode ter no máximo $_senhaMaxima caracteres.';
+    if (utf8.encode(valor).length > _senhaMaximaEmBytes) {
+      return 'A senha pode ter no máximo $_senhaMaximaEmBytes bytes (letras acentuadas contam 2).';
     }
     return null;
   }
