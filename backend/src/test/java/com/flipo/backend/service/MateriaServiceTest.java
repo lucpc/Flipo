@@ -184,6 +184,33 @@ class MateriaServiceTest {
 	}
 
 	@Test
+	void renomearAlteraONomeSalvaEDevolveComAsContagensDaMateria() {
+		Materia materia = new Materia(new Usuario("Nome", "dono@flipo.test", "hash"), "Nome antigo");
+		when(materiaRepository.findByIdAndUsuarioId(materiaId, usuarioId)).thenReturn(Optional.of(materia));
+		when(materiaRepository.save(materia)).thenReturn(materia);
+		when(cartaoRepository.countByMateriaIdAndMateria_Usuario_IdAndArquivado(materiaId, usuarioId, false))
+				.thenReturn(4L);
+		when(cartaoRepository.countByMateriaIdAndMateria_Usuario_IdAndArquivado(materiaId, usuarioId, true))
+				.thenReturn(2L);
+
+		MateriaComContagem renomeada = materiaService.renomear(materiaId, usuarioId, "Nome novo");
+
+		assertThat(renomeada).isEqualTo(new MateriaComContagem(materia, 4, 2));
+		assertThat(materia.getNome()).isEqualTo("Nome novo");
+		verify(materiaRepository).save(materia);
+	}
+
+	@Test
+	void renomearLancaRecursoNaoEncontradoENaoSalvaQuandoMateriaPertenceAOutroUsuario() {
+		when(materiaRepository.findByIdAndUsuarioId(materiaId, usuarioId)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> materiaService.renomear(materiaId, usuarioId, "Nome novo"))
+				.isInstanceOf(RecursoNaoEncontradoException.class);
+
+		verify(materiaRepository, never()).save(any());
+	}
+
+	@Test
 	void removerDeletaAMateriaQuandoPertenceAoUsuario() {
 		Materia materia = new Materia(new Usuario("Nome", "dono@flipo.test", "hash"), "Física");
 		when(materiaRepository.findByIdAndUsuarioId(materiaId, usuarioId)).thenReturn(Optional.of(materia));

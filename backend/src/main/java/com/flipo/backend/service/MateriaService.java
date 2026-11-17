@@ -86,6 +86,23 @@ public class MateriaService {
 	}
 
 	/**
+	 * Renomeia a matéria de id {@code materiaId} pertencente a {@code usuarioId} e a devolve com
+	 * sua contagem de cartões ativos e arquivados (o mesmo formato de {@link #listarPorUsuario}).
+	 * Reusa {@link #buscarPorIdEUsuario} para garantir posse antes de alterar — lança
+	 * {@link RecursoNaoEncontradoException} se a matéria não existir ou pertencer a outro usuário.
+	 */
+	public MateriaComContagem renomear(UUID materiaId, UUID usuarioId, String nome) {
+		Materia materia = buscarPorIdEUsuario(materiaId, usuarioId);
+		materia.setNome(nome);
+		Materia salva = materiaRepository.save(materia);
+		long totalAtivos = cartaoRepository.countByMateriaIdAndMateria_Usuario_IdAndArquivado(
+				materiaId, usuarioId, false);
+		long totalArquivados = cartaoRepository.countByMateriaIdAndMateria_Usuario_IdAndArquivado(
+				materiaId, usuarioId, true);
+		return new MateriaComContagem(salva, totalAtivos, totalArquivados);
+	}
+
+	/**
 	 * Remove a matéria de id {@code materiaId} pertencente a {@code usuarioId}. Reusa
 	 * {@link #buscarPorIdEUsuario} para garantir posse antes de deletar — lança
 	 * {@link RecursoNaoEncontradoException} se a matéria não existir ou pertencer a outro usuário.
@@ -97,7 +114,10 @@ public class MateriaService {
 		materiaRepository.delete(materia);
 	}
 
-	/** Uma {@link Materia} com sua contagem de cartões ativos e arquivados — ver {@link #listarPorUsuario}. */
+	/**
+	 * Uma {@link Materia} com sua contagem de cartões ativos e arquivados — ver
+	 * {@link #listarPorUsuario} e {@link #renomear}.
+	 */
 	public record MateriaComContagem(Materia materia, long totalAtivos, long totalArquivados) {
 	}
 }

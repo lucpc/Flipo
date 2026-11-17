@@ -3,7 +3,8 @@ package com.flipo.backend.dto;
 import java.util.UUID;
 
 /**
- * Resposta de {@code GET /api/materias} e {@code POST /api/materias} (docs/03-contrato-api.md).
+ * Resposta de {@code GET /api/materias}, {@code POST /api/materias} e
+ * {@code PATCH /api/materias/{id}} (docs/03-contrato-api.md).
  *
  * <p>{@code totalAtivos}/{@code totalArquivados} contam os cartões da matéria com
  * {@code arquivado=false}/{@code true}, respectivamente. {@code POST /api/materias} devolve uma

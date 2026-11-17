@@ -5,6 +5,8 @@ import com.flipo.backend.model.Materia;
 import com.flipo.backend.repository.CartaoRepository;
 import com.flipo.backend.repository.MateriaRepository;
 
+import jakarta.persistence.EntityManager;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -19,10 +21,13 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.blankOrNullString;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -48,6 +53,9 @@ class MateriaControllerTest {
 
 	@Autowired
 	private CartaoRepository cartaoRepository;
+
+	@Autowired
+	private EntityManager entityManager;
 
 	private String emailUnico() {
 		return "usuaria-" + UUID.randomUUID() + "@flipo.test";
@@ -197,6 +205,98 @@ class MateriaControllerTest {
 
 		mockMvc.perform(delete("/api/materias/" + UUID.randomUUID())
 				.header("Authorization", "Bearer " + token))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void renomearSemTokenDevolve401() throws Exception {
+		mockMvc.perform(patch("/api/materias/" + UUID.randomUUID())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(new MateriaBody("Novo nome"))))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void renomearComSucessoDevolve200ComNovoNomeETotaisDaMateria() throws Exception {
+		String token = registrarEObterToken();
+		String id = criarMateria(token, "Nome antigo");
+		criarCartao(id, false);
+		criarCartao(id, false);
+		criarCartao(id, true);
+
+		mockMvc.perform(patch("/api/materias/" + id)
+				.header("Authorization", "Bearer " + token)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(new MateriaBody("Nome novo"))))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(id))
+				.andExpect(jsonPath("$.nome").value("Nome novo"))
+				.andExpect(jsonPath("$.totalAtivos").value(2))
+				.andExpect(jsonPath("$.totalArquivados").value(1));
+
+		mockMvc.perform(get("/api/materias")
+				.header("Authorization", "Bearer " + token))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].nome").value("Nome novo"));
+	}
+
+	@Test
+	void renomearComNomeEmBrancoDevolve400() throws Exception {
+		String token = registrarEObterToken();
+		String id = criarMateria(token, "Nome antigo");
+
+		mockMvc.perform(patch("/api/materias/" + id)
+				.header("Authorization", "Bearer " + token)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(new MateriaBody("   "))))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.mensagem", startsWith("nome: ")));
+	}
+
+	@Test
+	void renomearComNomeAcimaDe255CaracteresDevolve400() throws Exception {
+		String token = registrarEObterToken();
+		String id = criarMateria(token, "Nome antigo");
+
+		mockMvc.perform(patch("/api/materias/" + id)
+				.header("Authorization", "Bearer " + token)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(new MateriaBody("a".repeat(256)))))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.mensagem", startsWith("nome: ")));
+	}
+
+	@Test
+	void renomearMateriaDeOutroUsuarioDevolve404ENaoAltera() throws Exception {
+		String tokenDona = registrarEObterToken();
+		String tokenInvasora = registrarEObterToken();
+		String idDaDona = criarMateria(tokenDona, "Matéria da dona");
+
+		mockMvc.perform(patch("/api/materias/" + idDaDona)
+				.header("Authorization", "Bearer " + tokenInvasora)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(new MateriaBody("Nome da invasora"))))
+				.andExpect(status().isNotFound());
+
+		// O nome no banco continua o original — a tentativa da invasora não teve efeito. flush +
+		// clear força a releitura do banco em vez da instância em cache no contexto de persistência.
+		entityManager.flush();
+		entityManager.clear();
+		assertThat(materiaRepository.findById(UUID.fromString(idDaDona)))
+				.get()
+				.extracting(Materia::getNome)
+				.isEqualTo("Matéria da dona");
+	}
+
+	@Test
+	void renomearMateriaComIdInexistenteDevolve404() throws Exception {
+		String token = registrarEObterToken();
+
+		mockMvc.perform(patch("/api/materias/" + UUID.randomUUID())
+				.header("Authorization", "Bearer " + token)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(new MateriaBody("Novo nome"))))
 				.andExpect(status().isNotFound());
 	}
 
