@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'botao_enviar.dart';
+import 'mensagem_de_erro.dart';
+
 /// Campos de pergunta e resposta de um cartão e o botão que os confirma. É o mesmo formulário na
 /// criação manual (quadro 04a do Figma), na edição de uma sugestão da Revisão (04f) e na edição
 /// de um cartão salvo (seção 6 de docs/01-fluxos-de-usuario.md), para a validação não divergir
-/// entre os fluxos. Quem usa põe o formulário numa área que rola.
+/// entre os fluxos. Quem usa põe o formulário numa área que rola. Quando confirmar grava na hora
+/// (a edição de um cartão salvo), quem usa passa [enviando] e [erro].
 class FormularioCartao extends StatefulWidget {
   const FormularioCartao({
     super.key,
@@ -12,6 +16,8 @@ class FormularioCartao extends StatefulWidget {
     required this.rotulo,
     this.icone,
     this.ajuda,
+    this.enviando = false,
+    this.erro,
     required this.aoConfirmar,
   });
 
@@ -25,6 +31,12 @@ class FormularioCartao extends StatefulWidget {
 
   /// Texto de apoio discreto logo acima do botão.
   final String? ajuda;
+
+  /// Enquanto true, o botão mostra o carregamento e os campos não mudam.
+  final bool enviando;
+
+  /// Mensagem de erro logo abaixo dos campos (ex.: a falha ao salvar).
+  final String? erro;
 
   /// Recebe os dois textos já sem espaços nas pontas, só quando ambos estão preenchidos.
   final void Function(String pergunta, String resposta) aoConfirmar;
@@ -59,7 +71,6 @@ class _FormularioCartaoState extends State<FormularioCartao> {
   Widget build(BuildContext context) {
     final tema = Theme.of(context);
     final ajuda = widget.ajuda;
-    final icone = widget.icone;
     return Form(
       key: _formulario,
       child: Column(
@@ -68,6 +79,7 @@ class _FormularioCartaoState extends State<FormularioCartao> {
         children: [
           TextFormField(
             controller: _pergunta,
+            readOnly: widget.enviando,
             decoration: const InputDecoration(labelText: 'Pergunta'),
             keyboardType: TextInputType.multiline,
             minLines: 2,
@@ -78,6 +90,7 @@ class _FormularioCartaoState extends State<FormularioCartao> {
           const SizedBox(height: 16),
           TextFormField(
             controller: _resposta,
+            readOnly: widget.enviando,
             decoration: const InputDecoration(labelText: 'Resposta'),
             keyboardType: TextInputType.multiline,
             minLines: 3,
@@ -85,6 +98,7 @@ class _FormularioCartaoState extends State<FormularioCartao> {
             textCapitalization: TextCapitalization.sentences,
             validator: _obrigatorio('Informe a resposta.'),
           ),
+          MensagemDeErro(widget.erro),
           const SizedBox(height: 24),
           if (ajuda case final ajuda?) ...[
             Text(
@@ -96,11 +110,11 @@ class _FormularioCartaoState extends State<FormularioCartao> {
             ),
             const SizedBox(height: 12),
           ],
-          FilledButton.icon(
-            onPressed: _confirmar,
-            icon: icone == null ? null : Icon(icone),
-            iconAlignment: IconAlignment.end,
-            label: Text(widget.rotulo),
+          BotaoEnviar(
+            rotulo: widget.rotulo,
+            icone: widget.icone,
+            enviando: widget.enviando,
+            aoPressionar: _confirmar,
           ),
         ],
       ),
