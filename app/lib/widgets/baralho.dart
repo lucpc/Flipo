@@ -52,12 +52,36 @@ class Baralho extends StatefulWidget {
 
 class _BaralhoState extends State<Baralho> {
   var _indice = 0;
+  // O cartão na tela (null no fim), para segui-lo quando a lista muda.
+  String? _atualId;
   // O id, e não um bool: o cartão que chega à posição (avançando, ou porque o atual saiu da lista)
   // começa sempre pela pergunta.
   String? _viradoId;
 
+  @override
+  void initState() {
+    super.initState();
+    _irPara(0);
+  }
+
+  // A lista mudou: se o cartão na tela continua nela (outro saiu antes dele, ou a ordem mudou),
+  // segue com ele; se saiu, a mesma posição mostra o que veio para ela.
+  @override
+  void didUpdateWidget(Baralho antigo) {
+    super.didUpdateWidget(antigo);
+    final novo = widget.cartoes.indexWhere((c) => c.id == _atualId);
+    _irPara(novo >= 0 ? novo : _indice);
+  }
+
+  void _irPara(int indice) {
+    _indice = indice;
+    _atualId = indice < widget.cartoes.length
+        ? widget.cartoes[indice].id
+        : null;
+  }
+
   void _recomecar() => setState(() {
-    _indice = 0;
+    _irPara(0);
     _viradoId = null;
   });
 
@@ -66,19 +90,33 @@ class _BaralhoState extends State<Baralho> {
     final cartoes = widget.cartoes;
     final atual = _indice < cartoes.length ? cartoes[_indice] : null;
     final tema = Theme.of(context);
+    final estiloTitulo =
+        tema.appBarTheme.titleTextStyle ?? tema.textTheme.titleLarge!;
+    final estiloPosicao = tema.textTheme.bodyMedium!.copyWith(
+      color: tema.colorScheme.onSurfaceVariant,
+    );
+    // O AppBar limita a escala do texto do título a 1,34; com ela, as duas linhas não cabem na
+    // altura padrão, então a barra cresce junto.
+    final escala = MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 1.34);
+    double linha(TextStyle estilo) =>
+        escala.scale(estilo.fontSize!) * (estilo.height ?? 1.2);
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: math.max(
+          kToolbarHeight,
+          linha(estiloTitulo) + linha(estiloPosicao) + 8,
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(widget.titulo, overflow: TextOverflow.ellipsis),
+            Text(widget.titulo, maxLines: 1, overflow: TextOverflow.ellipsis),
             if (atual != null)
               Text(
                 widget.posicao(_indice + 1, cartoes.length),
-                style: tema.textTheme.bodyMedium?.copyWith(
-                  color: tema.colorScheme.onSurfaceVariant,
-                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: estiloPosicao,
               ),
           ],
         ),
@@ -128,7 +166,7 @@ class _BaralhoState extends State<Baralho> {
         Padding(
           padding: const EdgeInsets.all(24),
           child: FilledButton.icon(
-            onPressed: () => setState(() => _indice++),
+            onPressed: () => setState(() => _irPara(_indice + 1)),
             icon: const Icon(Icons.chevron_right),
             iconAlignment: IconAlignment.end,
             label: const Text('Próximo cartão'),

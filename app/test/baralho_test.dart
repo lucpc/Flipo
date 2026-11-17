@@ -20,11 +20,15 @@ void main() {
   final fim = find.text('Fim do Arquivo');
 
   /// O Baralho dentro de um dono que guarda a lista, como a revisão do Arquivo (#23) vai fazer.
-  /// Com [comAcao], "Desarquivar este cartão" tira o cartão atual da lista.
+  /// Com [comAcao], "Desarquivar este cartão" tira o cartão atual da lista; com [mudar], "Mudar a
+  /// lista" troca a lista pelo que ele devolver.
   Future<void> abrirBaralho(
     WidgetTester tester,
     List<Cartao> cartoes, {
     bool comAcao = false,
+    List<Cartao> Function(List<Cartao> lista)? mudar,
+    String titulo = 'Arquivo',
+    String materia = 'Redes',
     Widget Function(Cartao)? canto,
     Color? Function(ColorScheme)? borda,
     bool animacoesReduzidas = false,
@@ -42,8 +46,8 @@ void main() {
         home: StatefulBuilder(
           builder: (context, setState) => Baralho(
             cartoes: lista,
-            titulo: 'Arquivo',
-            posicao: (n, total) => 'Redes · cartão $n de $total',
+            titulo: titulo,
+            posicao: (n, total) => '$materia · cartão $n de $total',
             tituloDoFim: 'Fim do Arquivo',
             apoioDoFim: 'Sem nota.',
             corDaBorda: borda?.call(Theme.of(context).colorScheme),
@@ -53,6 +57,11 @@ void main() {
                     onPressed: () =>
                         setState(() => lista = [...lista]..remove(atual)),
                     child: const Text('Desarquivar este cartão'),
+                  )
+                : mudar != null
+                ? (_) => OutlinedButton(
+                    onPressed: () => setState(() => lista = mudar(lista)),
+                    child: const Text('Mudar a lista'),
                   )
                 : null,
           ),
@@ -92,6 +101,92 @@ void main() {
     expect(find.text('Pergunta b'), findsOneWidget);
     expect(rotulo, findsOneWidget);
     expect(find.textContaining('Resposta'), findsNothing);
+  });
+
+  testWidgets('tirar da lista um cartão anterior mantém o mesmo cartão na '
+      'tela, e o seguinte não é pulado', (tester) async {
+    await abrirBaralho(tester, [
+      cartao('a'),
+      cartao('b'),
+      cartao('c'),
+    ], mudar: (lista) => [...lista]..removeAt(0));
+    await tocar(tester, proximo);
+    await tocar(tester, find.text('Pergunta b'));
+
+    await tocar(tester, find.text('Mudar a lista'));
+
+    expect(find.text('Redes · cartão 1 de 2'), findsOneWidget);
+    expect(find.text('Resposta b'), findsOneWidget);
+    await tocar(tester, proximo);
+    expect(find.text('Redes · cartão 2 de 2'), findsOneWidget);
+    expect(find.text('Pergunta c'), findsOneWidget);
+  });
+
+  testWidgets('a lista volta em outra ordem: o mesmo cartão continua na '
+      'tela', (tester) async {
+    await abrirBaralho(tester, [
+      cartao('a'),
+      cartao('b'),
+      cartao('c'),
+    ], mudar: (lista) => [lista[1], lista[2], lista[0]]);
+    await tocar(tester, proximo);
+
+    await tocar(tester, find.text('Mudar a lista'));
+
+    expect(find.text('Redes · cartão 1 de 3'), findsOneWidget);
+    expect(find.text('Pergunta b'), findsOneWidget);
+  });
+
+  testWidgets('o cartão seguinte nunca mostra a resposta, nem durante a '
+      'troca', (tester) async {
+    await abrirBaralho(tester, [cartao('a'), cartao('b')]);
+    await tocar(tester, find.text('Pergunta a'));
+    expect(find.text('Resposta a'), findsOneWidget);
+
+    await tester.tap(proximo);
+    for (var quadro = 0; quadro < 20; quadro++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(find.text('Resposta b'), findsNothing, reason: 'quadro $quadro');
+    }
+    expect(find.text('Pergunta b'), findsOneWidget);
+  });
+
+  testWidgets('o cabeçalho cabe com fonte grande e nomes longos', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    const nome = 'Redes de Computadores e Sistemas Distribuídos Avançados';
+    for (final escala in [1.0, 1.34, 2.0, 3.0]) {
+      tester.platformDispatcher.textScaleFactorTestValue = escala;
+      await abrirBaralho(
+        tester,
+        [cartao('a')],
+        titulo: nome,
+        materia: nome,
+        comAcao: true,
+      );
+      expect(tester.takeException(), isNull, reason: 'escala $escala');
+      // O AppBar não acusa transbordo no título: as linhas só saem da barra.
+      final barra = tester.getRect(find.byType(AppBar));
+      expect(
+        tester.getRect(find.text(nome)).top,
+        greaterThanOrEqualTo(barra.top),
+        reason: 'escala $escala',
+      );
+      expect(
+        tester.getRect(find.text('$nome · cartão 1 de 1')).bottom,
+        lessThanOrEqualTo(barra.bottom),
+        reason: 'escala $escala',
+      );
+      for (final texto in [nome, '$nome · cartão 1 de 1']) {
+        final linha = tester.widget<Text>(find.text(texto));
+        expect(linha.maxLines, 1);
+        expect(linha.overflow, TextOverflow.ellipsis);
+      }
+    }
   });
 
   testWidgets('tirar o último cartão da lista leva ao fim, que ainda deixa '
