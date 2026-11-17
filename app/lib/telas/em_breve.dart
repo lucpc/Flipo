@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// Destino provisório das entradas da tela da matéria cujos fluxos ainda não existem: hoje só o
-/// Arquivo (#23), que troca esta tela pela de verdade.
+/// Destino provisório das entradas da tela da matéria cujos fluxos ainda não existem: hoje o
+/// Arquivo (#23) e Gerenciar cartões (#43), que trocam esta tela pela de verdade.
 class TelaEmBreve extends StatelessWidget {
   const TelaEmBreve({super.key, required this.titulo});
 

@@ -434,4 +434,289 @@ void main() {
     expect(find.byType(AlertDialog), findsNothing);
     expect(find.byType(TelaLogin), findsOneWidget);
   });
+
+  group('menu ⋮ da matéria', () {
+    Finder noCabecalho(String texto) =>
+        find.descendant(of: find.byType(AppBar), matching: find.text(texto));
+
+    Future<void> abrirMenu(WidgetTester tester) async {
+      await tester.tap(find.byTooltip('Mais opções'));
+      await tester.pumpAndSettle();
+    }
+
+    /// Avança o tempo sem esperar assentar: com a barra de progresso girando, pumpAndSettle não
+    /// termina.
+    Future<void> avancar(WidgetTester tester) async {
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    testWidgets('tem Editar, Gerenciar cartões e, separado e em vermelho, '
+        'Apagar', (tester) async {
+      await abrirApp(tester, {
+        'GET /api/materias': () => json(200, [materia('m1', 'Redes', 6, 2)]),
+      });
+      await tester.tap(find.text('Redes'));
+      await tester.pumpAndSettle();
+      await abrirMenu(tester);
+
+      final editar = tester.getCenter(find.text('Editar matéria')).dy;
+      final gerenciar = tester.getCenter(find.text('Gerenciar cartões')).dy;
+      final divisoria = tester.getCenter(find.byType(PopupMenuDivider)).dy;
+      final apagar = tester.getCenter(find.text('Apagar matéria')).dy;
+      expect(editar < gerenciar, isTrue);
+      expect(gerenciar < divisoria && divisoria < apagar, isTrue);
+      final erro = Theme.of(
+        tester.element(find.text('Apagar matéria')),
+      ).colorScheme.error;
+      final itemApagar = tester.widget<ListTile>(
+        find.widgetWithText(ListTile, 'Apagar matéria'),
+      );
+      expect(itemApagar.textColor, erro);
+      expect(itemApagar.iconColor, erro);
+
+      await tester.tap(find.text('Gerenciar cartões'));
+      await tester.pumpAndSettle();
+      expect(noCabecalho('Gerenciar cartões'), findsOneWidget);
+      expect(find.text('Em breve'), findsOneWidget);
+    });
+
+    testWidgets('Editar renomeia: o cabeçalho mostra o nome novo na hora, e a '
+        'lista, ao voltar', (tester) async {
+      final recarga = Completer<http.Response>();
+      await abrirApp(tester, {
+        'GET /api/materias': emSequencia([
+          () => json(200, [materia('m1', 'Redes', 6, 2)]),
+          () => recarga.future,
+          () => json(200, [materia('m1', 'Redes de Computadores', 6, 2)]),
+        ]),
+        'PATCH /api/materias/m1': () =>
+            json(200, materia('m1', 'Redes de Computadores', 6, 2)),
+      });
+      await tester.tap(find.text('Redes'));
+      await tester.pumpAndSettle();
+      await abrirMenu(tester);
+      await tester.tap(find.text('Editar matéria'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.widgetWithText(AlertDialog, 'Editar matéria'),
+        findsOneWidget,
+      );
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        'Redes',
+      );
+      await tester.enterText(find.byType(TextField), ' Redes de Computadores ');
+      await tester.tap(botao('Salvar'));
+      // A recarga depois de renomear fica pendente: o nome vem da resposta do PATCH.
+      await avancar(tester);
+
+      final patch = requisicoes.singleWhere((r) => r.method == 'PATCH');
+      expect(jsonDecode(patch.body), {'nome': 'Redes de Computadores'});
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(noCabecalho('Redes de Computadores'), findsOneWidget);
+
+      recarga.complete(
+        json(200, [materia('m1', 'Redes de Computadores', 6, 2)]),
+      );
+      await tester.pumpAndSettle();
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Minhas matérias'), findsOneWidget);
+      expect(find.text('Redes de Computadores'), findsOneWidget);
+      expect(find.text('Redes'), findsNothing);
+    });
+
+    testWidgets('uma recarga que saiu antes de renomear não traz o nome antigo '
+        'de volta', (tester) async {
+      final antiga = Completer<http.Response>();
+      await abrirApp(tester, {
+        'GET /api/materias': emSequencia([
+          () => json(200, [materia('m1', 'Redes', 6, 2)]),
+          () => antiga.future,
+          () => json(200, [materia('m1', 'Redes de Computadores', 6, 2)]),
+        ]),
+        'PATCH /api/materias/m1': () =>
+            json(200, materia('m1', 'Redes de Computadores', 6, 2)),
+      });
+      await tester.tap(find.text('Redes'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Estudar cartões'));
+      await tester.pumpAndSettle();
+      await tester.pageBack();
+      await avancar(tester);
+
+      // Renomeia com a recarga de quando o estudo fechou ainda pendente.
+      await tester.tap(find.byTooltip('Mais opções'));
+      await avancar(tester);
+      await tester.tap(find.text('Editar matéria'));
+      await avancar(tester);
+      await tester.enterText(find.byType(TextField), 'Redes de Computadores');
+      await tester.tap(botao('Salvar'));
+      await avancar(tester);
+
+      antiga.complete(json(200, [materia('m1', 'Redes', 6, 2)]));
+      await tester.pumpAndSettle();
+
+      expect(noCabecalho('Redes de Computadores'), findsOneWidget);
+    });
+
+    testWidgets('Editar valida o nome como "Nova matéria" e mostra o erro da '
+        'API no diálogo', (tester) async {
+      await abrirApp(tester, {
+        'GET /api/materias': () => json(200, [materia('m1', 'Redes', 6, 2)]),
+        'PATCH /api/materias/m1': () =>
+            json(409, {'mensagem': 'Já existe uma matéria com esse nome.'}),
+      });
+      await tester.tap(find.text('Redes'));
+      await tester.pumpAndSettle();
+      await abrirMenu(tester);
+      await tester.tap(find.text('Editar matéria'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), '   ');
+      await tester.tap(botao('Salvar'));
+      await tester.pump();
+      expect(find.text('Informe o nome.'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), 'a' * 256);
+      await tester.tap(botao('Salvar'));
+      await tester.pump();
+      expect(
+        find.text('O nome pode ter no máximo 255 caracteres.'),
+        findsOneWidget,
+      );
+      expect(requisicoes.where((r) => r.method == 'PATCH'), isEmpty);
+
+      await tester.enterText(find.byType(TextField), 'Cálculo');
+      await tester.tap(botao('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(find.text('Já existe uma matéria com esse nome.'), findsOneWidget);
+      expect(tester.widget<FilledButton>(botao('Salvar')).onPressed, isNotNull);
+      expect(noCabecalho('Redes'), findsOneWidget);
+    });
+
+    testWidgets('Apagar pede confirmação: cancelar não apaga, confirmar apaga '
+        'e volta para a lista, que recarrega', (tester) async {
+      await abrirApp(tester, {
+        'GET /api/materias': emSequencia([
+          () => json(200, [materia('m1', 'Redes', 6, 2)]),
+          () => json(200, []),
+        ]),
+        'DELETE /api/materias/m1': () => http.Response('', 204),
+      });
+      await tester.tap(find.text('Redes'));
+      await tester.pumpAndSettle();
+      await abrirMenu(tester);
+      await tester.tap(find.text('Apagar matéria'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Apagar matéria?'), findsOneWidget);
+      expect(
+        find.text(
+          '"Redes" e seus 8 cartões serão apagados. '
+          'Essa ação não pode ser desfeita.',
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(noCabecalho('Redes'), findsOneWidget);
+      expect(requisicoes.where((r) => r.method == 'DELETE'), isEmpty);
+
+      await abrirMenu(tester);
+      await tester.tap(find.text('Apagar matéria'));
+      await tester.pumpAndSettle();
+      await tester.tap(botao('Apagar'));
+      await tester.pumpAndSettle();
+
+      expect(requisicoes.where((r) => r.method == 'DELETE'), hasLength(1));
+      expect(find.text('Minhas matérias'), findsOneWidget);
+      expect(find.text('Nenhuma matéria ainda'), findsOneWidget);
+      expect(listagens(), 2);
+    });
+
+    testWidgets('a confirmação de apagar conta os cartões da matéria', (
+      tester,
+    ) async {
+      await abrirApp(tester, {
+        'GET /api/materias': () => json(200, [
+          materia('m1', 'Redes', 0, 1),
+          materia('m2', 'Física', 0, 0),
+        ]),
+      });
+
+      for (final (nome, texto) in [
+        ('Redes', '"Redes" e seu cartão serão apagados.'),
+        ('Física', '"Física" será apagada.'),
+      ]) {
+        await tester.tap(find.text(nome));
+        await tester.pumpAndSettle();
+        await abrirMenu(tester);
+        await tester.tap(find.text('Apagar matéria'));
+        await tester.pumpAndSettle();
+        expect(
+          find.text('$texto Essa ação não pode ser desfeita.'),
+          findsOneWidget,
+        );
+        await tester.tap(find.text('Cancelar'));
+        await tester.pumpAndSettle();
+        await tester.pageBack();
+        await tester.pumpAndSettle();
+      }
+    });
+
+    testWidgets('erro ao apagar fica no diálogo, e cancelar continua na '
+        'matéria', (tester) async {
+      await abrirApp(tester, {
+        'GET /api/materias': () => json(200, [materia('m1', 'Redes', 6, 2)]),
+        'DELETE /api/materias/m1': () =>
+            json(500, {'mensagem': 'Erro interno.'}),
+      });
+      await tester.tap(find.text('Redes'));
+      await tester.pumpAndSettle();
+      await abrirMenu(tester);
+      await tester.tap(find.text('Apagar matéria'));
+      await tester.pumpAndSettle();
+      await tester.tap(botao('Apagar'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(find.text('Erro interno.'), findsOneWidget);
+      expect(tester.widget<FilledButton>(botao('Apagar')).onPressed, isNotNull);
+
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(noCabecalho('Redes'), findsOneWidget);
+      expect(find.text('6 ativos'), findsOneWidget);
+    });
+
+    testWidgets('401 ao apagar fecha tudo e volta ao login', (tester) async {
+      await abrirApp(tester, {
+        'GET /api/materias': () => json(200, [materia('m1', 'Redes', 6, 2)]),
+        'DELETE /api/materias/m1': () => http.Response('', 401),
+      });
+      await tester.tap(find.text('Redes'));
+      await tester.pumpAndSettle();
+      await abrirMenu(tester);
+      await tester.tap(find.text('Apagar matéria'));
+      await tester.pumpAndSettle();
+      await tester.tap(botao('Apagar'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.byType(TelaLogin), findsOneWidget);
+      expect(find.text('Sua sessão expirou. Entre de novo.'), findsOneWidget);
+      // Só a listagem de quando o app abriu: nada de recarga sem token.
+      expect(listagens(), 1);
+    });
+  });
 }
