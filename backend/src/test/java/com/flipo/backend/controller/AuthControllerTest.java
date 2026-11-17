@@ -73,6 +73,54 @@ class AuthControllerTest {
 	}
 
 	@Test
+	void registrarComSenhaDeMaisDe72BytesEAte72CaracteresDevolve400() throws Exception {
+		// 40 "ç" = 40 caracteres, mas 80 bytes em UTF-8: passaria num limite por caracteres e o
+		// BCrypt lançaria IllegalArgumentException (500).
+		String senha = "ç".repeat(40);
+
+		mockMvc.perform(post("/api/auth/registro")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(new RegistroBody("Usuária", emailUnico(), senha))))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.mensagem")
+						.value("senha: A senha pode ter no máximo 72 bytes (letras acentuadas contam 2)."));
+	}
+
+	@Test
+	void registrarComSenhaDe73CaracteresAsciiDevolve400SoComAMensagemDeBytes() throws Exception {
+		mockMvc.perform(post("/api/auth/registro")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(
+						new RegistroBody("Usuária", emailUnico(), "a".repeat(73)))))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.mensagem")
+						.value("senha: A senha pode ter no máximo 72 bytes (letras acentuadas contam 2)."));
+	}
+
+	@Test
+	void registrarComSenhaDe72CaracteresAsciiFuncionaEPermiteLogin() throws Exception {
+		String email = emailUnico();
+		String senha = "a".repeat(72);
+		registrar("Usuária", email, senha);
+
+		mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(new LoginBody(email, senha))))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.token").isString());
+	}
+
+	@Test
+	void registrarComSenhaDe7CaracteresDevolve400() throws Exception {
+		mockMvc.perform(post("/api/auth/registro")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(
+						new RegistroBody("Usuária", emailUnico(), "1234567"))))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.mensagem").value("senha: A senha precisa ter pelo menos 8 caracteres."));
+	}
+
+	@Test
 	void registrarComEmailDuplicadoDevolve409SemVazarStacktrace() throws Exception {
 		String email = emailUnico();
 		registrar("Primeira", email, "senha12345");
@@ -115,6 +163,30 @@ class AuthControllerTest {
 		mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(new LoginBody(emailUnico(), "qualquer-senha"))))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.mensagem").value("E-mail ou senha inválidos."));
+	}
+
+	// O login não valida o tamanho da senha: depende de BCryptPasswordEncoder.matches não lançar
+	// exceção acima de 72 bytes (só o encode lança). Estes dois testes fixam isso, para o e-mail
+	// cadastrado e para o caminho do hashFantasma.
+	@Test
+	void loginComSenhaDeMaisDe72BytesEEmailCadastradoDevolve401ComMensagemGenerica() throws Exception {
+		String email = emailUnico();
+		registrar("Usuária", email, "senha12345");
+
+		mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(new LoginBody(email, "ç".repeat(40)))))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.mensagem").value("E-mail ou senha inválidos."));
+	}
+
+	@Test
+	void loginComSenhaDeMaisDe72BytesEEmailInexistenteDevolve401ComMensagemGenerica() throws Exception {
+		mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(new LoginBody(emailUnico(), "ç".repeat(40)))))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.mensagem").value("E-mail ou senha inválidos."));
 	}
