@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flipo/main.dart';
+import 'package:flipo/telas/estudo.dart';
 import 'package:flipo/telas/autenticacao.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -52,6 +53,7 @@ void main() {
     final todas = <String, FutureOr<http.Response> Function()>{
       'GET /api/usuarios/me': () =>
           json(200, {'id': 'u1', 'nome': 'Ana', 'email': 'ana@exemplo.com'}),
+      'GET /api/materias/m1/cartoes': () => json(200, []),
       ...respostas,
     };
     await tester.pumpWidget(
@@ -252,7 +254,7 @@ void main() {
 
     await tester.tap(find.text('Estudar cartões'));
     await tester.pumpAndSettle();
-    expect(find.text('Em breve'), findsOneWidget);
+    expect(find.byType(TelaEstudo), findsOneWidget);
     await tester.pageBack();
     await tester.pumpAndSettle();
 
@@ -332,7 +334,7 @@ void main() {
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
-    expect(find.text('Em breve'), findsNothing);
+    expect(find.byType(TelaEstudo), findsNothing);
 
     // Volta para a lista enquanto a recarga da matéria ainda não chegou.
     await tester.pageBack();
