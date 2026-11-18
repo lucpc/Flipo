@@ -59,8 +59,8 @@ These were considered and deliberately rejected. Do not reintroduce them as "imp
 - Backend: Java 21, Spring Boot, Spring Data JPA, Spring Security (JWT).
 - Database: PostgreSQL, migrations via Flyway — do not rely on `ddl-auto: update` beyond local
   prototyping.
-- App: Flutter (Dart), one codebase for Android, iOS and web. The React `frontend/` is being
-  retired (Épico 9) — don't add features to it.
+- App: Flutter (Dart), one codebase for Android, iOS and web. It replaced the first React
+  frontend, retired in Épico 9.
 - On the app, the JWT lives in secure storage (`flutter_secure_storage`), never in plain
   preferences.
 - AI generation goes through the `GeradorDeCartoes` interface; never call a provider SDK directly

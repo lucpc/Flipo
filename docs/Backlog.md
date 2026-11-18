@@ -17,7 +17,8 @@ uma sessão de IA reabrir uma decisão já fechada (ver seção "Decisões de pr
 - [x] Decidir ferramenta de build do backend (**Maven**) e gerar o esqueleto Spring Boot 4.1.1 /
       Java 21 em `backend/` (`./mvnw test` verificado contra Postgres real)
 - [x] Esqueleto frontend Vite + React + TypeScript em `frontend/`, com a paleta Rosé Pine Dawn
-      como tokens CSS em `src/theme.css` (`npm run lint` e `npm run build` verificados)
+      como tokens CSS em `src/theme.css` (`npm run lint` e `npm run build` verificados) —
+      substituído pelo app Flutter e removido no Épico 9
 - [x] `docker-compose.yml` com Postgres local (para rodar migrations Flyway sem depender do
       Neon/Railway durante o desenvolvimento) — `make up` / `make psql` / `make reset`
 - [x] Repositório Git inicializado (branch `main`)

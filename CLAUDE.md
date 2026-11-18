@@ -45,7 +45,7 @@ numa tela de revisão comum antes de qualquer persistência.
 - Backend: Java 21, Spring Boot, Spring Data JPA, Spring Security (JWT)
 - Banco: PostgreSQL (Flyway para migrations)
 - App: Flutter (Dart), um único código para Android, iOS e web, publicado nas lojas. Substituiu
-  o primeiro frontend em React (`frontend/`), que está sendo aposentado (Épico 9)
+  o primeiro frontend em React, aposentado no Épico 9
 - IA: interface `GeradorDeCartoes`, implementação trocável (Ollama/Groq em desenvolvimento,
   Anthropic em produção), com suporte a BYOK (chave própria do usuário)
 
