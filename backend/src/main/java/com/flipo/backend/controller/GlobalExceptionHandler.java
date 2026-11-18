@@ -3,10 +3,13 @@ package com.flipo.backend.controller;
 import com.flipo.backend.dto.ErrorResponse;
 import com.flipo.backend.service.CredenciaisInvalidasException;
 import com.flipo.backend.service.EmailJaCadastradoException;
+import com.flipo.backend.service.FalhaNaGeracaoException;
+import com.flipo.backend.service.GeracaoIndisponivelException;
 import com.flipo.backend.service.RecursoNaoEncontradoException;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -33,6 +36,25 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(RecursoNaoEncontradoException.class)
 	public ResponseEntity<ErrorResponse> handleRecursoNaoEncontrado(RecursoNaoEncontradoException e) {
 		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponse(e.getMessage()));
+	}
+
+	@ExceptionHandler(GeracaoIndisponivelException.class)
+	public ResponseEntity<ErrorResponse> handleGeracaoIndisponivel(GeracaoIndisponivelException e) {
+		return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(new ErrorResponse(e.getMessage()));
+	}
+
+	@ExceptionHandler(FalhaNaGeracaoException.class)
+	public ResponseEntity<ErrorResponse> handleFalhaNaGeracao(FalhaNaGeracaoException e) {
+		return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(new ErrorResponse(e.getMessage()));
+	}
+
+	/**
+	 * JSON malformado ou valor fora do esperado (ex: {@code nivel} que não é
+	 * {@code definicao}/{@code aplicacao}). Mensagem genérica: a do Jackson cita classes internas.
+	 */
+	@ExceptionHandler(HttpMessageNotReadableException.class)
+	public ResponseEntity<ErrorResponse> handleCorpoIlegivel(HttpMessageNotReadableException e) {
+		return ResponseEntity.badRequest().body(new ErrorResponse("Corpo da requisição inválido."));
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)

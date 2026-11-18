@@ -2,8 +2,12 @@ package com.flipo.backend.controller;
 
 import com.flipo.backend.dto.CartaoRequest;
 import com.flipo.backend.dto.CartaoResponse;
+import com.flipo.backend.dto.GerarIaRequest;
+import com.flipo.backend.dto.LoteRequest;
+import com.flipo.backend.ia.CartaoSugerido;
 import com.flipo.backend.model.Cartao;
 import com.flipo.backend.service.CartaoService;
+import com.flipo.backend.service.GeracaoDeCartoesService;
 
 import jakarta.validation.Valid;
 
@@ -38,9 +42,11 @@ import java.util.UUID;
 public class CartaoController {
 
 	private final CartaoService cartaoService;
+	private final GeracaoDeCartoesService geracaoDeCartoesService;
 
-	public CartaoController(CartaoService cartaoService) {
+	public CartaoController(CartaoService cartaoService, GeracaoDeCartoesService geracaoDeCartoesService) {
 		this.cartaoService = cartaoService;
+		this.geracaoDeCartoesService = geracaoDeCartoesService;
 	}
 
 	@GetMapping("/materias/{materiaId}/cartoes")
@@ -61,6 +67,30 @@ public class CartaoController {
 			@Valid @RequestBody CartaoRequest request) {
 		Cartao cartao = cartaoService.criar(materiaId, usuarioId, request.pergunta(), request.resposta());
 		return paraResponse(cartao);
+	}
+
+	/** Só sugere: não grava nada. Quem grava o que o usuário aceitar é o {@code lote}. */
+	@PostMapping("/materias/{materiaId}/cartoes/gerar-ia")
+	public List<CartaoSugerido> gerarIa(
+			@AuthenticationPrincipal UUID usuarioId,
+			@PathVariable UUID materiaId,
+			@Valid @RequestBody GerarIaRequest request) {
+		return geracaoDeCartoesService.gerar(
+				materiaId, usuarioId, request.texto(), request.quantidade(), request.nivel());
+	}
+
+	@PostMapping("/materias/{materiaId}/cartoes/lote")
+	@ResponseStatus(HttpStatus.CREATED)
+	public List<CartaoResponse> criarLote(
+			@AuthenticationPrincipal UUID usuarioId,
+			@PathVariable UUID materiaId,
+			@Valid @RequestBody LoteRequest request) {
+		List<CartaoSugerido> aceitos = request.cartoes().stream()
+				.map(cartao -> new CartaoSugerido(cartao.pergunta(), cartao.resposta()))
+				.toList();
+		return cartaoService.criarLote(materiaId, usuarioId, aceitos).stream()
+				.map(CartaoController::paraResponse)
+				.toList();
 	}
 
 	@PatchMapping("/cartoes/{id}")
