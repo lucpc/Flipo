@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flipo/main.dart';
 import 'package:flipo/telas/estudo.dart';
+import 'package:flipo/telas/gerenciar_cartoes.dart';
 import 'package:flipo/telas/autenticacao.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -477,8 +478,68 @@ void main() {
 
       await tester.tap(find.text('Gerenciar cartões'));
       await tester.pumpAndSettle();
-      expect(noCabecalho('Gerenciar cartões'), findsOneWidget);
-      expect(find.text('Em breve'), findsOneWidget);
+      expect(find.byType(TelaGerenciarCartoes), findsOneWidget);
+      expect(find.text('Em breve'), findsNothing);
+    });
+
+    testWidgets('arquivar pelo Gerenciar cartões volta à matéria com o aviso e '
+        'os totais novos', (tester) async {
+      var arquivado = false;
+      final cartao = {
+        'id': 'c1',
+        'pergunta': 'O que é DNS?',
+        'resposta': 'Tradução de nomes.',
+        'origem': 'manual',
+      };
+      await tester.pumpWidget(
+        FlipoApp(
+          httpClient: MockClient((r) async {
+            requisicoes.add(r);
+            return switch ('${r.method} ${r.url.path}') {
+              'GET /api/usuarios/me' => json(200, {
+                'id': 'u1',
+                'nome': 'Ana',
+                'email': 'ana@exemplo.com',
+              }),
+              'GET /api/materias' => json(200, [
+                materia('m1', 'Redes', arquivado ? 0 : 1, arquivado ? 1 : 0),
+              ]),
+              'GET /api/materias/m1/cartoes' =>
+                r.url.queryParameters['arquivado'] == '$arquivado'
+                    ? json(200, [
+                        {...cartao, 'arquivado': arquivado},
+                      ])
+                    : json(200, []),
+              'PATCH /api/cartoes/c1/arquivar' => () {
+                arquivado = true;
+                return json(200, {...cartao, 'arquivado': true});
+              }(),
+              final outra => throw StateError('inesperada: $outra'),
+            };
+          }),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Redes'));
+      await tester.pumpAndSettle();
+      expect(find.text('1 ativo'), findsOneWidget);
+
+      await abrirMenu(tester);
+      await tester.tap(find.text('Gerenciar cartões'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('O que é DNS?'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Arquivar cartão'));
+      await tester.pumpAndSettle();
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TelaGerenciarCartoes), findsNothing);
+      expect(
+        find.text('Cartão arquivado — agora está no Arquivo'),
+        findsOneWidget,
+      );
+      expect(find.text('1 arquivado'), findsOneWidget);
     });
 
     testWidgets('Editar renomeia: o cabeçalho mostra o nome novo na hora, e a '

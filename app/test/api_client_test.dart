@@ -75,6 +75,37 @@ void main() {
     },
   );
 
+  test('edita, arquiva, desarquiva e exclui o cartão pelo id, codificado no '
+      'caminho', () async {
+    final api = clientRespondendo(
+      200,
+      '{"id":"c/1","pergunta":"O que é NAT?","resposta":"Tradução",'
+      '"origem":"manual","arquivado":true}',
+    );
+
+    final editado = await api.editarCartao('c/1', 'O que é NAT?', 'Tradução');
+    final arquivado = await api.arquivarCartao('c/1');
+    await api.desarquivarCartao('c/1');
+    await api.excluirCartao('c/1');
+
+    expect(
+      [for (final r in requisicoes) '${r.method} ${r.url}'],
+      [
+        'PATCH http://api.teste/api/cartoes/c%2F1',
+        'PATCH http://api.teste/api/cartoes/c%2F1/arquivar',
+        'PATCH http://api.teste/api/cartoes/c%2F1/desarquivar',
+        'DELETE http://api.teste/api/cartoes/c%2F1',
+      ],
+    );
+    expect(jsonDecode(requisicoes.first.body), {
+      'pergunta': 'O que é NAT?',
+      'resposta': 'Tradução',
+    });
+    expect(requisicoes.skip(1).map((r) => r.body), everyElement(isEmpty));
+    expect(editado.pergunta, 'O que é NAT?');
+    expect(arquivado.arquivado, isTrue);
+  });
+
   test('login envia e-mail e senha e guarda o token recebido', () async {
     final api = clientRespondendo(200, '{"token":"jwt-novo"}');
 

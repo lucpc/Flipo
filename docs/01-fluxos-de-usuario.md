@@ -119,7 +119,8 @@ Tela de edição contém:
 - Botão principal "Salvar" — grava as alterações de conteúdo
 - Botão "Arquivar cartão" ou "Desarquivar cartão" (dependendo do estado atual), com o texto de
   apoio "Arquivados saem do estudo e ficam no Arquivo da matéria. Dá para desarquivar quando
-  quiser."
+  quiser." Se a pergunta ou a resposta foram alteradas e ainda não salvas, o mesmo toque salva o
+  texto antes de arquivar ou desarquivar.
 - Link discreto "Excluir cartão" — remove o cartão permanentemente, sempre com confirmação. A
   confirmação sugere arquivar como alternativa: "'{pergunta}' será apagado de vez. Se você só
   quer tirá-lo do estudo, use 'Arquivar cartão'." (06b)

@@ -7,6 +7,7 @@ import '../widgets/mensagem_de_erro.dart';
 import 'adicionar_cartao.dart';
 import 'conta.dart';
 import 'em_breve.dart';
+import 'gerenciar_cartoes.dart';
 import 'estudo.dart';
 
 /// Minhas matérias (docs/01-fluxos-de-usuario.md, seção 2, quadro 02 do Figma). Recarrega a lista
@@ -323,7 +324,7 @@ class _TelaMateriaState extends State<TelaMateria> {
     }
   }
 
-  // Arquivo (#23) e Gerenciar cartões (#43) abrem a tela provisória por enquanto.
+  // Arquivo (#23) abre a tela provisória por enquanto.
   void _abrir(String titulo) => _abrirTela(TelaEmBreve(titulo: titulo));
 
   Future<void> _editar() async {
@@ -376,7 +377,9 @@ class _TelaMateriaState extends State<TelaMateria> {
                 ),
               ),
               PopupMenuItem(
-                value: () => _abrir('Gerenciar cartões'),
+                value: () => _abrirTela(
+                  TelaGerenciarCartoes(api: widget.api, materia: _materia),
+                ),
                 child: const ListTile(
                   leading: Icon(Icons.view_list_outlined),
                   title: Text('Gerenciar cartões'),

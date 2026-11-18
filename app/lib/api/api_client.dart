@@ -191,6 +191,44 @@ class ApiClient {
         .toList();
   }
 
+  /// Troca a pergunta e a resposta. Não mexe em `arquivado`.
+  Future<Cartao> editarCartao(
+    String id,
+    String pergunta,
+    String resposta,
+  ) async => Cartao.fromJson(
+    await _requisitar(
+          'PATCH',
+          '/api/cartoes/${Uri.encodeComponent(id)}',
+          corpo: {'pergunta': pergunta, 'resposta': resposta},
+        )
+        as Map<String, dynamic>,
+  );
+
+  /// Tira o cartão do estudo e o põe no Arquivo. Só por ação deliberada do usuário, na edição do
+  /// cartão: nunca automaticamente, nem durante o estudo.
+  Future<Cartao> arquivarCartao(String id) async => Cartao.fromJson(
+    await _requisitar(
+          'PATCH',
+          '/api/cartoes/${Uri.encodeComponent(id)}/arquivar',
+        )
+        as Map<String, dynamic>,
+  );
+
+  /// Devolve o cartão aos ativos.
+  Future<Cartao> desarquivarCartao(String id) async => Cartao.fromJson(
+    await _requisitar(
+          'PATCH',
+          '/api/cartoes/${Uri.encodeComponent(id)}/desarquivar',
+        )
+        as Map<String, dynamic>,
+  );
+
+  /// Apaga o cartão de vez.
+  Future<void> excluirCartao(String id) async {
+    await _requisitar('DELETE', '/api/cartoes/${Uri.encodeComponent(id)}');
+  }
+
   Future<Object?> _requisitar(
     String metodo,
     String caminho, {
