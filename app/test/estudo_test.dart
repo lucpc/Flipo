@@ -461,6 +461,34 @@ void main() {
       });
     }
 
+    testWidgets('excluir outro cartão depois de arquivar não tira o aviso', (
+      tester,
+    ) async {
+      await abrirEstudo(
+        tester,
+        () => json(200, [cartao(1), cartao(2), cartao(3)]),
+        outras: {
+          'PATCH /api/cartoes/c1/arquivar': () => json(200, arquivado(1)),
+          'DELETE /api/cartoes/c2': () => http.Response('', 204),
+        },
+      );
+      await tocar(tester, editar);
+      await tocar(tester, find.text('Arquivar cartão'));
+      await tocar(tester, editar);
+      await tocar(tester, find.text('Excluir cartão'));
+      await tocar(tester, find.text('Excluir'));
+
+      expect(chamadas(), [
+        'PATCH /api/cartoes/c1/arquivar',
+        'DELETE /api/cartoes/c2',
+      ]);
+      expect(find.text('Pergunta 3'), findsOneWidget);
+      await tocar(tester, find.byType(BackButton));
+
+      expect(find.byType(TelaMateria), findsOneWidget);
+      expect(find.text(avisoArquivado), findsOneWidget);
+    });
+
     testWidgets('401 ao editar volta ao login, mesmo com um aviso guardado', (
       tester,
     ) async {

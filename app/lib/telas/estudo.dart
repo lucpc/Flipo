@@ -27,7 +27,9 @@ class _TelaEstudoState extends State<TelaEstudo> {
   // null enquanto carrega ou depois de uma falha.
   List<Cartao>? _cartoes;
   String? _erro;
-  // Uma edição tirou o último cartão: o baralho fica, com o fim, em vez da sessão vazia.
+  // Alguma edição já voltou para a sessão, ou seja, o baralho já estava na tela. Só conta com a
+  // lista vazia: aí a edição tirou o último cartão, e o baralho fica, com o fim, em vez da sessão
+  // vazia, que é só para quando a matéria abre sem cartões ativos.
   var _editou = false;
   // Só arquivar deixa aviso. O cartão arquivado sai do baralho e não dá para desarquivá-lo daqui,
   // então nada depois o desfaz.
