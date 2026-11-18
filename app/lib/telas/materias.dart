@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
+import '../widgets/aviso.dart';
 import '../widgets/botao_enviar.dart';
 import '../widgets/coluna_central.dart';
 import '../widgets/mensagem_de_erro.dart';
@@ -410,7 +411,11 @@ class _TelaMateriaState extends State<TelaMateria> {
                 height: 4,
                 child: _carregando ? const LinearProgressIndicator() : null,
               ),
-              if (aviso != null) _Aviso(aviso),
+              if (aviso != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: Aviso(aviso),
+                ),
               Expanded(
                 child: erro != null
                     ? _Falha(mensagem: erro, aoTentarDeNovo: _carregar)
@@ -651,40 +656,6 @@ class _Inicial extends StatelessWidget {
         _inicial(nome),
         style: tema.textTheme.titleMedium?.copyWith(
           color: tema.colorScheme.primary,
-        ),
-      ),
-    );
-  }
-}
-
-/// Aviso discreto no topo da tela da matéria, deixado pela tela que acabou de fechar.
-class _Aviso extends StatelessWidget {
-  const _Aviso(this.texto);
-
-  final String texto;
-
-  @override
-  Widget build(BuildContext context) {
-    final tema = Theme.of(context);
-    return Semantics(
-      liveRegion: true,
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: tema.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              Icons.check_circle_outline,
-              size: 20,
-              color: tema.colorScheme.primary,
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(texto, style: tema.textTheme.bodyMedium)),
-          ],
         ),
       ),
     );

@@ -7,6 +7,7 @@ import 'package:flipo/telas/autenticacao.dart';
 import 'package:flipo/telas/editar_cartao.dart';
 import 'package:flipo/telas/materias.dart';
 import 'package:flipo/theme.dart';
+import 'package:flipo/widgets/aviso.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -44,59 +45,67 @@ void main() {
   int total(bool arquivado) =>
       cartoes.where((c) => c['arquivado'] == arquivado).length;
 
-  /// Entra no app já logado, abre a matéria Redes e toca em "Arquivo". O backend guarda o estado
-  /// de [cartoes]; [respostas] troca a resposta de uma rota ("MÉTODO caminho"). Com [esperar]
-  /// falso, não espera a tela assentar (um carregamento pendente gira para sempre).
+  /// O backend falso, com o estado de [cartoes].
+  http.Response backend(http.Request r) {
+    final caminho = r.url.path;
+    final id = caminho.split('/').elementAtOrNull(3);
+    return switch ('${r.method} $caminho') {
+      'GET /api/usuarios/me' => json(200, {
+        'id': 'u1',
+        'nome': 'Ana',
+        'email': 'ana@exemplo.com',
+      }),
+      'GET /api/materias' => json(200, [
+        {
+          'id': 'm1',
+          'nome': 'Redes',
+          'totalAtivos': total(false),
+          'totalArquivados': total(true),
+        },
+      ]),
+      'GET /api/materias/m1/cartoes' => json(200, [
+        for (final c in cartoes)
+          if ('${c['arquivado']}' == r.url.queryParameters['arquivado']) c,
+      ]),
+      final rota when rota.endsWith('/desarquivar') => json(
+        200,
+        comId(id!)!..['arquivado'] = false,
+      ),
+      final rota when rota.startsWith('PATCH /api/cartoes/') => json(
+        200,
+        comId(id!)!..addAll(
+          (jsonDecode(r.body) as Map<String, dynamic>).cast<String, Object>(),
+        ),
+      ),
+      final rota when rota.startsWith('DELETE /api/cartoes/') => () {
+        cartoes.remove(comId(id!));
+        return http.Response('', 204);
+      }(),
+      final outra => throw StateError('inesperada: $outra'),
+    };
+  }
+
+  /// Responde como o [backend], mas só quando [solta] completar.
+  FutureOr<http.Response> Function(http.Request) segurar(Future<void> solta) =>
+      (r) async {
+        await solta;
+        return backend(r);
+      };
+
+  /// Entra no app já logado, abre a matéria Redes e toca em "Arquivo". [respostas] troca a
+  /// resposta do [backend] numa rota ("MÉTODO caminho"). Com [esperar] falso, não espera a tela
+  /// assentar (um carregamento pendente gira para sempre).
   Future<void> abrirArquivo(
     WidgetTester tester, {
     Map<String, FutureOr<http.Response> Function(http.Request)> respostas =
         const {},
     bool esperar = true,
   }) async {
-    http.Response padrao(http.Request r) {
-      final caminho = r.url.path;
-      final id = caminho.split('/').elementAtOrNull(3);
-      return switch ('${r.method} $caminho') {
-        'GET /api/usuarios/me' => json(200, {
-          'id': 'u1',
-          'nome': 'Ana',
-          'email': 'ana@exemplo.com',
-        }),
-        'GET /api/materias' => json(200, [
-          {
-            'id': 'm1',
-            'nome': 'Redes',
-            'totalAtivos': total(false),
-            'totalArquivados': total(true),
-          },
-        ]),
-        'GET /api/materias/m1/cartoes' => json(200, [
-          for (final c in cartoes)
-            if ('${c['arquivado']}' == r.url.queryParameters['arquivado']) c,
-        ]),
-        final rota when rota.endsWith('/desarquivar') => json(
-          200,
-          comId(id!)!..['arquivado'] = false,
-        ),
-        final rota when rota.startsWith('PATCH /api/cartoes/') => json(
-          200,
-          comId(id!)!..addAll(
-            (jsonDecode(r.body) as Map<String, dynamic>).cast<String, Object>(),
-          ),
-        ),
-        final rota when rota.startsWith('DELETE /api/cartoes/') => () {
-          cartoes.remove(comId(id!));
-          return http.Response('', 204);
-        }(),
-        final outra => throw StateError('inesperada: $outra'),
-      };
-    }
-
     await tester.pumpWidget(
       FlipoApp(
         httpClient: MockClient((r) async {
           requisicoes.add(r);
-          return (respostas['${r.method} ${r.url.path}'] ?? padrao)(r);
+          return (respostas['${r.method} ${r.url.path}'] ?? backend)(r);
         }),
       ),
     );
@@ -130,6 +139,8 @@ void main() {
   final proximo = find.text('Próximo cartão');
   final desarquivar = find.text('Desarquivar este cartão');
   final editar = find.byTooltip('Editar cartão');
+  final aviso = find.text('Cartão devolvido para os ativos');
+  final revisarDeNovo = find.text('Revisar de novo');
   final avaliacao = find.textContaining(
     RegExp('acertei|errei|como você se saiu', caseSensitive: false),
   );
@@ -170,6 +181,26 @@ void main() {
       (borda as RoundedRectangleBorder).side.color,
       temaFlipo.colorScheme.tertiary,
     );
+    final estilo = tester
+        .widget<IconButton>(
+          find.ancestor(of: editar, matching: find.byType(IconButton)),
+        )
+        .style!;
+    expect(
+      estilo.backgroundColor?.resolve({}),
+      temaFlipo.colorScheme.surfaceContainerHighest,
+    );
+    expect(
+      estilo.foregroundColor?.resolve({}),
+      temaFlipo.colorScheme.onSurfaceVariant,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(OutlinedButton),
+        matching: find.byIcon(Icons.replay),
+      ),
+      findsOneWidget,
+    );
     // Abaixo do cartão, logo acima de "Próximo cartão" (quadro 07a).
     expect(
       tester.getTopLeft(desarquivar).dy,
@@ -198,6 +229,34 @@ void main() {
     expect(avaliacao, findsNothing);
   });
 
+  testWidgets('depois de desarquivar, o aviso aparece entre o cabeçalho e o '
+      'cartão e some sozinho', (tester) async {
+    cartoes = [cartao(1), cartao(2)];
+    await abrirArquivo(tester);
+    expect(aviso, findsNothing);
+
+    await tocar(tester, desarquivar);
+
+    expect(
+      find.ancestor(of: aviso, matching: find.byType(Aviso)),
+      findsOneWidget,
+    );
+    expect(
+      tester.getTopLeft(aviso).dy,
+      greaterThan(tester.getBottomLeft(find.byType(AppBar)).dy),
+    );
+    expect(
+      tester.getBottomLeft(aviso).dy,
+      lessThan(tester.getTopLeft(find.text('pergunta')).dy),
+    );
+    await tester.pump(const Duration(seconds: 3));
+    expect(aviso, findsOneWidget);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    expect(aviso, findsNothing);
+    expect(find.text('Pergunta 2'), findsOneWidget);
+  });
+
   testWidgets('desarquivar o último encerra a revisão, sem recomeçar; voltar '
       'mostra os totais novos', (tester) async {
     cartoes = [cartao(1), cartao(2, arquivado: false)];
@@ -212,7 +271,9 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('cartão 1 de'), findsNothing);
-    expect(find.text('Estudar de novo'), findsNothing);
+    expect(revisarDeNovo, findsNothing);
+    // O fim já diz para onde o cartão foi.
+    expect(aviso, findsNothing);
 
     await tocar(tester, find.text('Voltar para a matéria'));
     expect(find.byType(TelaArquivo), findsNothing);
@@ -235,13 +296,14 @@ void main() {
       findsOneWidget,
     );
     expect(mudancas(), isEmpty);
+    expect(find.text('Estudar de novo'), findsNothing);
 
-    await tocar(tester, find.text('Estudar de novo'));
+    await tocar(tester, revisarDeNovo);
     expect(find.text('Redes · cartão 1 de 2'), findsOneWidget);
   });
 
   testWidgets('enquanto desarquiva, o botão fica desabilitado e mostra o '
-      'progresso, e voltar espera', (tester) async {
+      'progresso', (tester) async {
     cartoes = [cartao(1), cartao(2)];
     final resposta = Completer<http.Response>();
     await abrirArquivo(
@@ -270,18 +332,24 @@ void main() {
       isNull,
     );
 
-    await tester.binding.handlePopRoute();
-    await tester.pump();
-    expect(find.byType(TelaArquivo), findsOneWidget);
-
     resposta.complete(json(200, cartao(1, arquivado: false)));
     await tester.pumpAndSettle();
     expect(find.text('Redes · cartão 1 de 1'), findsOneWidget);
     expect(botaoDesarquivar(tester).onPressed, isNotNull);
+  });
 
-    await tester.binding.handlePopRoute();
+  testWidgets('dois toques no mesmo quadro desarquivam uma vez só', (
+    tester,
+  ) async {
+    cartoes = [cartao(1), cartao(2)];
+    await abrirArquivo(tester);
+
+    await tester.tap(desarquivar);
+    await tester.tap(desarquivar);
     await tester.pumpAndSettle();
-    expect(find.byType(TelaArquivo), findsNothing);
+
+    expect(mudancas(), ['PATCH /api/cartoes/c1/desarquivar']);
+    expect(find.text('Redes · cartão 1 de 1'), findsOneWidget);
   });
 
   testWidgets('falha ao desarquivar mostra o erro e mantém o cartão no '
@@ -304,6 +372,7 @@ void main() {
     expect(find.text('Redes · cartão 1 de 2'), findsOneWidget);
     expect(find.text('Resposta 1'), findsOneWidget);
     expect(botaoDesarquivar(tester).onPressed, isNotNull);
+    expect(aviso, findsNothing);
 
     falhar = false;
     await tocar(tester, desarquivar);
@@ -311,6 +380,31 @@ void main() {
     expect(find.text('Erro interno.'), findsNothing);
     expect(find.text('Redes · cartão 1 de 1'), findsOneWidget);
     expect(find.text('Pergunta 2'), findsOneWidget);
+  });
+
+  testWidgets('a falha de um cartão que já ficou para trás não aparece no '
+      'seguinte, e sim nele, ao revisar de novo', (tester) async {
+    cartoes = [cartao(1), cartao(2)];
+    final resposta = Completer<http.Response>();
+    await abrirArquivo(
+      tester,
+      respostas: {'PATCH /api/cartoes/c1/desarquivar': (_) => resposta.future},
+    );
+    await tester.tap(desarquivar);
+    await tester.pump();
+    await tocar(tester, proximo);
+
+    resposta.complete(json(500, {'mensagem': 'Erro interno.'}));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Redes · cartão 2 de 2'), findsOneWidget);
+    expect(find.text('Erro interno.'), findsNothing);
+    await tocar(tester, proximo);
+    await tocar(tester, revisarDeNovo);
+    expect(find.text('Pergunta 1'), findsOneWidget);
+    expect(find.text('Erro interno.'), findsOneWidget);
+    await tocar(tester, proximo);
+    expect(find.text('Erro interno.'), findsNothing);
   });
 
   testWidgets('avançar enquanto desarquiva tira o cartão certo e fica no que '
@@ -339,7 +433,7 @@ void main() {
     expect(find.text('Redes · cartão 2 de 2'), findsOneWidget);
     expect(find.text('Pergunta 3'), findsOneWidget);
     await tocar(tester, proximo);
-    await tocar(tester, find.text('Estudar de novo'));
+    await tocar(tester, revisarDeNovo);
     expect(find.text('Pergunta 2'), findsOneWidget);
   });
 
@@ -357,14 +451,14 @@ void main() {
       await tocar(tester, find.text('Salvar'));
 
       expect(mudancas(), ['PATCH /api/cartoes/c2']);
+      expect(aviso, findsNothing);
       expect(find.byType(TelaArquivo), findsOneWidget);
       expect(find.text('Redes · cartão 2 de 2'), findsOneWidget);
       expect(find.text('O que é NAT?'), findsOneWidget);
     });
 
-    testWidgets('desarquivar pela edição tira o cartão do Arquivo', (
-      tester,
-    ) async {
+    testWidgets('desarquivar pela edição tira o cartão do Arquivo, com o '
+        'aviso', (tester) async {
       cartoes = [cartao(1), cartao(2)];
       await abrirArquivo(tester);
 
@@ -374,6 +468,7 @@ void main() {
       expect(mudancas(), ['PATCH /api/cartoes/c1/desarquivar']);
       expect(find.text('Redes · cartão 1 de 1'), findsOneWidget);
       expect(find.text('Pergunta 2'), findsOneWidget);
+      expect(aviso, findsOneWidget);
     });
 
     testWidgets('excluir pela edição, depois de confirmar, tira o cartão do '
@@ -408,7 +503,7 @@ void main() {
     expect(find.byType(TelaArquivo), findsOneWidget);
     expect(find.text('Nenhum cartão no Arquivo'), findsOneWidget);
     expect(desarquivar, findsNothing);
-    expect(find.text('Estudar de novo'), findsNothing);
+    expect(revisarDeNovo, findsNothing);
   });
 
   testWidgets('falha ao carregar mostra o erro, e "Tentar de novo" carrega', (
@@ -460,34 +555,170 @@ void main() {
     expect(find.byType(TelaMateria), findsOneWidget);
   });
 
-  // O "Voltar para a matéria" do fim fecha a tela mesmo com um desarquivar em andamento.
-  for (final (nome, resposta) in [
-    ('dá certo', () => json(200, cartao(1, arquivado: false))),
-    ('falha', () => json(500, {'mensagem': 'Erro interno.'})),
-  ]) {
-    testWidgets('o desarquivar que $nome depois de sair pelo fim não mexe na '
-        'tela', (tester) async {
-      cartoes = [cartao(1)];
-      final pendente = Completer<http.Response>();
-      await abrirArquivo(
-        tester,
-        respostas: {
-          'PATCH /api/cartoes/c1/desarquivar': (_) => pendente.future,
-        },
-      );
-      await tester.tap(desarquivar);
+  // As três saídas. Enquanto envia, o spinner do botão não deixa a tela assentar.
+  final saidas = <String, Future<void> Function(WidgetTester)>{
+    'o voltar do AppBar': (tester) async {
+      await tester.tap(find.byType(BackButton));
       await tester.pump();
-      await tocar(tester, proximo);
+    },
+    'o voltar do sistema': (tester) async {
+      await tester.binding.handlePopRoute();
+      await tester.pump();
+    },
+    '"Voltar para a matéria"': (tester) async {
+      if (proximo.evaluate().isNotEmpty) await tocar(tester, proximo);
       await tocar(tester, find.text('Voltar para a matéria'));
-      expect(find.byType(TelaArquivo), findsNothing);
+    },
+  };
 
-      pendente.complete(resposta());
-      await tester.pumpAndSettle();
+  for (final MapEntry(key: saida, value: sair) in saidas.entries) {
+    for (final falha in [false, true]) {
+      testWidgets('com um desarquivar que ${falha ? 'falha' : 'dá certo'} em '
+          'andamento, $saida espera por ele e fecha uma vez só, com os totais '
+          'novos', (tester) async {
+        cartoes = [cartao(1), cartao(2, arquivado: false)];
+        final solta = Completer<void>();
+        await abrirArquivo(
+          tester,
+          respostas: {
+            'PATCH /api/cartoes/c1/desarquivar': falha
+                ? (_) async {
+                    await solta.future;
+                    return json(500, {'mensagem': 'Erro interno.'});
+                  }
+                : segurar(solta.future),
+          },
+        );
+        await tester.tap(desarquivar);
+        await tester.pump();
 
-      expect(tester.takeException(), isNull);
-      expect(find.byType(TelaMateria), findsOneWidget);
-    });
+        await sair(tester);
+        await sair(tester);
+        expect(find.byType(TelaArquivo), findsOneWidget);
+        expect(listagens(), 1);
+
+        solta.complete();
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        expect(find.byType(TelaArquivo), findsNothing);
+        expect(find.byType(TelaMateria), findsOneWidget);
+        expect(listagens(), 2);
+        expect(find.text(falha ? '1 ativo' : '2 ativos'), findsOneWidget);
+        expect(
+          find.text(falha ? '1 arquivado' : 'nenhum arquivado'),
+          findsOneWidget,
+        );
+      });
+    }
   }
+
+  testWidgets('com dois desarquivar em andamento, a saída espera os dois', (
+    tester,
+  ) async {
+    cartoes = [cartao(1), cartao(2), cartao(3)];
+    final primeiro = Completer<void>();
+    final segundo = Completer<void>();
+    await abrirArquivo(
+      tester,
+      respostas: {
+        'PATCH /api/cartoes/c1/desarquivar': segurar(primeiro.future),
+        'PATCH /api/cartoes/c2/desarquivar': segurar(segundo.future),
+      },
+    );
+    await tester.tap(desarquivar);
+    await tester.pump();
+    await tocar(tester, proximo);
+    await tester.tap(desarquivar);
+    await tester.pump();
+    await saidas['o voltar do AppBar']!(tester);
+
+    primeiro.complete();
+    // O cartão 2 ainda envia, e o spinner dele não deixa a tela assentar.
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(TelaArquivo), findsOneWidget);
+
+    segundo.complete();
+    await tester.pumpAndSettle();
+    expect(find.byType(TelaArquivo), findsNothing);
+    expect(find.text('1 arquivado'), findsOneWidget);
+  });
+
+  testWidgets('pedir para sair e depois abrir a edição: o desarquivar que '
+      'termina não fecha a edição nem o Arquivo, e a saída que ficou para trás '
+      'não volta depois', (tester) async {
+    cartoes = [cartao(1), cartao(2)];
+    final solta = Completer<void>();
+    await abrirArquivo(
+      tester,
+      respostas: {'PATCH /api/cartoes/c1/desarquivar': segurar(solta.future)},
+    );
+    await tester.tap(desarquivar);
+    await tester.pump();
+    await tocar(tester, proximo);
+    await tocar(tester, find.byType(BackButton));
+    expect(find.byType(TelaArquivo), findsOneWidget);
+    await tocar(tester, editar);
+
+    solta.complete();
+    await tester.pumpAndSettle();
+    expect(find.byType(TelaEditarCartao), findsOneWidget);
+
+    await tocar(tester, find.byType(BackButton));
+    expect(find.byType(TelaArquivo), findsOneWidget);
+    expect(find.text('Redes · cartão 1 de 1'), findsOneWidget);
+
+    await tocar(tester, desarquivar);
+    expect(find.byType(TelaArquivo), findsOneWidget);
+    expect(find.text('Nenhum cartão no Arquivo'), findsOneWidget);
+  });
+
+  testWidgets('um 401 em outro cartão volta ao login, e o desarquivar que '
+      'falha depois não mexe na tela que saiu', (tester) async {
+    cartoes = [cartao(1), cartao(2)];
+    final primeiro = Completer<http.Response>();
+    await abrirArquivo(
+      tester,
+      respostas: {
+        'PATCH /api/cartoes/c1/desarquivar': (_) => primeiro.future,
+        'PATCH /api/cartoes/c2/desarquivar': (_) => http.Response('', 401),
+      },
+    );
+    await tester.tap(desarquivar);
+    await tester.pump();
+    await tocar(tester, proximo);
+    await tocar(tester, desarquivar);
+    expect(find.byType(TelaLogin), findsOneWidget);
+    expect(find.byType(TelaArquivo), findsNothing);
+
+    primeiro.complete(json(500, {'mensagem': 'Erro interno.'}));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(TelaLogin), findsOneWidget);
+  });
+
+  testWidgets('pedir para sair e o desarquivar dar 401: volta ao login', (
+    tester,
+  ) async {
+    cartoes = [cartao(1)];
+    final resposta = Completer<http.Response>();
+    await abrirArquivo(
+      tester,
+      respostas: {'PATCH /api/cartoes/c1/desarquivar': (_) => resposta.future},
+    );
+    await tester.tap(desarquivar);
+    await tester.pump();
+    await saidas['"Voltar para a matéria"']!(tester);
+
+    resposta.complete(http.Response('', 401));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(TelaLogin), findsOneWidget);
+    expect(find.text('Sua sessão expirou. Entre de novo.'), findsOneWidget);
+  });
 
   testWidgets('401 ao carregar volta ao login', (tester) async {
     cartoes = [cartao(1)];

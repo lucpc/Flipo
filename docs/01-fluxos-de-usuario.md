@@ -134,8 +134,13 @@ Tela de edição contém:
 - Usa apenas os cartões com `arquivado = true` e funciona como a sessão de estudo: tocar vira
   o cartão, "Próximo cartão" avança, sem avaliação obrigatória.
 - Abaixo do cartão, logo acima de "Próximo cartão", o botão **"Desarquivar este cartão"**
-  devolve o cartão para os ativos. O cartão sai do Arquivo e a revisão segue para o próximo
-  (07c). Se era o último, a revisão termina.
+  devolve o cartão para os ativos. O cartão sai do Arquivo e a revisão segue para o próximo,
+  com o aviso "Cartão devolvido para os ativos" entre o cabeçalho e o cartão, que some sozinho
+  em alguns segundos (07c). Se era o último, a revisão termina.
+- Fim da revisão: "Você passou pelos cartões arquivados — Sem nota, sem placar. Volte quando
+  quiser.", com "Revisar de novo" (recomeça do primeiro cartão) e "Voltar para a matéria". Se o
+  Arquivo ficou vazio (o último cartão foi desarquivado ou excluído), "Nenhum cartão no Arquivo —
+  Os cartões desarquivados voltam para 'Estudar cartões'.", só com "Voltar para a matéria".
 - O ícone ⋮ de edição (seção 6) também está disponível aqui — é por ele que se exclui um
   cartão arquivado.
 - O Arquivo serve para relembrar de vez em quando o que já foi dominado e trazer de volta o que
