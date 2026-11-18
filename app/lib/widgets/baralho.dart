@@ -226,7 +226,9 @@ class _BaralhoState extends State<Baralho> {
                 const SizedBox(height: 12),
               ],
               OutlinedButton(
-                onPressed: () => Navigator.of(context).pop(),
+                // Como o voltar do AppBar: passa pelo PopScope do dono, que pode fechar com um
+                // resultado (ex.: o aviso de um cartão arquivado na sessão).
+                onPressed: () => Navigator.of(context).maybePop(),
                 child: const Text('Voltar para a matéria'),
               ),
             ],

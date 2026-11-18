@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flipo/main.dart';
 import 'package:flipo/telas/adicionar_cartao.dart';
 import 'package:flipo/telas/autenticacao.dart';
+import 'package:flipo/telas/editar_cartao.dart';
 import 'package:flipo/telas/estudo.dart';
 import 'package:flipo/telas/materias.dart';
 import 'package:flutter/material.dart';
@@ -43,12 +44,14 @@ void main() {
   }
 
   /// Entra no app já logado, abre a matéria Redes e toca em "Estudar cartões". [cartoes] responde
-  /// ao `GET` dos cartões da matéria. Com [esperar] falso, não espera a tela assentar (um
-  /// carregamento pendente gira para sempre): só a transição da rota.
+  /// ao `GET` dos cartões da matéria; [outras] mapeia "MÉTODO caminho" para as demais (ex.: as da
+  /// edição). Com [esperar] falso, não espera a tela assentar (um carregamento pendente gira para
+  /// sempre): só a transição da rota.
   Future<void> abrirEstudo(
     WidgetTester tester,
     FutureOr<http.Response> Function() cartoes, {
     bool esperar = true,
+    Map<String, FutureOr<http.Response> Function()> outras = const {},
   }) async {
     final respostas = <String, FutureOr<http.Response> Function()>{
       'GET /api/usuarios/me': () =>
@@ -58,6 +61,7 @@ void main() {
       ]),
       'GET /api/materias/m1/cartoes': cartoes,
       'POST /api/materias/m1/cartoes': () => json(201, cartao(1)),
+      ...outras,
     };
     await tester.pumpWidget(
       FlipoApp(
@@ -268,5 +272,217 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byType(TelaEstudo), findsNothing);
     expect(find.byType(TelaLogin), findsOneWidget);
+  });
+
+  group('editar a partir da sessão', () {
+    final editar = find.byTooltip('Editar cartão');
+    const avisoArquivado = 'Cartão arquivado — agora está no Arquivo';
+
+    Map<String, Object> arquivado(int n) => {...cartao(n), 'arquivado': true};
+
+    List<String> chamadas() => [
+      for (final r in requisicoes)
+        if (r.method != 'GET') '${r.method} ${r.url.path}',
+    ];
+
+    int recargasDaMateria() =>
+        requisicoes.where((r) => r.url.path == '/api/materias').length;
+
+    // As três saídas da sessão: o voltar do AppBar, o do sistema e "Voltar para a matéria", que
+    // só existe no fim (aqui, depois de passar pelos cartões que restam).
+    final saidas = <String, Future<void> Function(WidgetTester)>{
+      'o voltar do AppBar': (tester) => tocar(tester, find.byType(BackButton)),
+      'o voltar do sistema': (tester) async {
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+      },
+      '"Voltar para a matéria"': (tester) async {
+        while (proximo.evaluate().isNotEmpty) {
+          await tocar(tester, proximo);
+        }
+        await tocar(tester, find.text('Voltar para a matéria'));
+      },
+    };
+
+    testWidgets('o ⋮ abre a edição do cartão atual sem virá-lo, e voltar sem '
+        'gravar deixa a sessão no mesmo lugar', (tester) async {
+      await abrirEstudo(tester, () => json(200, [cartao(1), cartao(2)]));
+      await tocar(tester, proximo);
+
+      await tocar(tester, editar);
+
+      expect(find.byType(TelaEditarCartao), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, 'Pergunta 2'), findsOneWidget);
+      await tocar(tester, find.byType(BackButton));
+      expect(find.text('cartão 2 de 2'), findsOneWidget);
+      expect(find.text('pergunta'), findsOneWidget);
+      expect(find.text('Pergunta 2'), findsOneWidget);
+      expect(chamadas(), isEmpty);
+    });
+
+    testWidgets('o ⋮ é um botão à parte do cartão, com rótulo para o leitor '
+        'de tela', (tester) async {
+      final semantica = tester.ensureSemantics();
+      await abrirEstudo(tester, () => json(200, [cartao(1)]));
+
+      expect(
+        tester.getSemantics(editar),
+        isSemantics(tooltip: 'Editar cartão', isButton: true),
+      );
+      // Não entra no nó do cartão, que segue só com a face.
+      expect(
+        tester.getSemantics(find.text('pergunta')),
+        isSemantics(
+          label: 'pergunta\nPergunta 1\ntoque para virar',
+          tooltip: '',
+        ),
+      );
+      expect(
+        tester.getSemantics(editar).id,
+        isNot(tester.getSemantics(find.text('pergunta')).id),
+      );
+      semantica.dispose();
+    });
+
+    testWidgets('salvar atualiza o cartão no lugar, na mesma posição, e sair '
+        'não leva aviso', (tester) async {
+      await abrirEstudo(
+        tester,
+        () => json(200, [cartao(1), cartao(2), cartao(3)]),
+        outras: {
+          'PATCH /api/cartoes/c2': () =>
+              json(200, {...cartao(2), 'pergunta': 'Pergunta nova'}),
+        },
+      );
+      await tocar(tester, proximo);
+      await tocar(tester, editar);
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Pergunta 2'),
+        'Pergunta nova',
+      );
+      await tocar(tester, find.text('Salvar'));
+
+      expect(chamadas(), ['PATCH /api/cartoes/c2']);
+      expect(find.byType(TelaEditarCartao), findsNothing);
+      expect(find.text('cartão 2 de 3'), findsOneWidget);
+      expect(find.text('Pergunta nova'), findsOneWidget);
+      await tocar(tester, proximo);
+      expect(find.text('cartão 3 de 3'), findsOneWidget);
+      expect(find.text('Pergunta 3'), findsOneWidget);
+
+      await tocar(tester, find.byType(BackButton));
+      expect(find.byType(TelaMateria), findsOneWidget);
+      expect(find.text(avisoArquivado), findsNothing);
+      expect(recargasDaMateria(), 2);
+    });
+
+    testWidgets('arquivar tira o cartão do baralho e mostra o próximo, pela '
+        'pergunta', (tester) async {
+      await abrirEstudo(
+        tester,
+        () => json(200, [cartao(1), cartao(2), cartao(3)]),
+        outras: {
+          'PATCH /api/cartoes/c2/arquivar': () => json(200, arquivado(2)),
+        },
+      );
+      await tocar(tester, proximo);
+      await tocar(tester, find.text('Pergunta 2'));
+      await tocar(tester, editar);
+
+      await tocar(tester, find.text('Arquivar cartão'));
+
+      expect(chamadas(), ['PATCH /api/cartoes/c2/arquivar']);
+      expect(find.text('cartão 2 de 2'), findsOneWidget);
+      expect(find.text('pergunta'), findsOneWidget);
+      expect(find.text('Pergunta 3'), findsOneWidget);
+    });
+
+    testWidgets('arquivar o último cartão ativo mostra o fim, sem "Estudar de '
+        'novo"', (tester) async {
+      await abrirEstudo(
+        tester,
+        () => json(200, [cartao(1)]),
+        outras: {
+          'PATCH /api/cartoes/c1/arquivar': () => json(200, arquivado(1)),
+        },
+      );
+      await tocar(tester, editar);
+
+      await tocar(tester, find.text('Arquivar cartão'));
+
+      expect(find.text('Você passou pelos cartões ativos'), findsOneWidget);
+      expect(find.text('Estudar de novo'), findsNothing);
+      expect(find.text('Voltar para a matéria'), findsOneWidget);
+      expect(find.text('Nenhum cartão ativo nesta matéria'), findsNothing);
+    });
+
+    testWidgets('excluir, confirmado, tira o cartão do baralho; sair não leva '
+        'aviso', (tester) async {
+      await abrirEstudo(
+        tester,
+        () => json(200, [cartao(1), cartao(2)]),
+        outras: {'DELETE /api/cartoes/c1': () => http.Response('', 204)},
+      );
+      await tocar(tester, editar);
+
+      await tocar(tester, find.text('Excluir cartão'));
+      await tocar(tester, find.text('Excluir'));
+
+      expect(chamadas(), ['DELETE /api/cartoes/c1']);
+      expect(find.text('cartão 1 de 1'), findsOneWidget);
+      expect(find.text('Pergunta 2'), findsOneWidget);
+
+      await saidas['"Voltar para a matéria"']!(tester);
+      expect(find.byType(TelaMateria), findsOneWidget);
+      expect(find.text(avisoArquivado), findsNothing);
+    });
+
+    for (final MapEntry(key: nome, value: sair) in saidas.entries) {
+      testWidgets('com um cartão arquivado, $nome leva o aviso para a matéria, '
+          'que recarrega os totais', (tester) async {
+        await abrirEstudo(
+          tester,
+          () => json(200, [cartao(1), cartao(2)]),
+          outras: {
+            'PATCH /api/cartoes/c1/arquivar': () => json(200, arquivado(1)),
+          },
+        );
+        await tocar(tester, editar);
+        await tocar(tester, find.text('Arquivar cartão'));
+        expect(find.text('Pergunta 2'), findsOneWidget);
+
+        await sair(tester);
+
+        expect(find.byType(TelaEstudo), findsNothing);
+        expect(find.byType(TelaMateria), findsOneWidget);
+        expect(find.text(avisoArquivado), findsOneWidget);
+        expect(recargasDaMateria(), 2);
+      });
+    }
+
+    testWidgets('401 ao editar volta ao login, mesmo com um aviso guardado', (
+      tester,
+    ) async {
+      await abrirEstudo(
+        tester,
+        () => json(200, [cartao(1), cartao(2)]),
+        outras: {
+          'PATCH /api/cartoes/c1/arquivar': () => json(200, arquivado(1)),
+          'PATCH /api/cartoes/c2': () => http.Response('', 401),
+        },
+      );
+      await tocar(tester, editar);
+      await tocar(tester, find.text('Arquivar cartão'));
+      await tocar(tester, editar);
+
+      await tocar(tester, find.text('Salvar'));
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(TelaEditarCartao), findsNothing);
+      expect(find.byType(TelaEstudo), findsNothing);
+      expect(find.byType(TelaMateria), findsNothing);
+      expect(find.byType(TelaLogin), findsOneWidget);
+    });
   });
 }
