@@ -1,10 +1,12 @@
 package com.flipo.backend.service;
 
+import com.flipo.backend.ia.CartaoSugerido;
 import com.flipo.backend.model.Cartao;
 import com.flipo.backend.model.Materia;
 import com.flipo.backend.repository.CartaoRepository;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
@@ -57,6 +59,22 @@ public class CartaoService {
 	public Cartao criar(UUID materiaId, UUID usuarioId, String pergunta, String resposta) {
 		Materia materia = materiaService.buscarPorIdEUsuario(materiaId, usuarioId);
 		return cartaoRepository.save(new Cartao(materia, pergunta, resposta, Cartao.ORIGEM_MANUAL));
+	}
+
+	/**
+	 * Grava de uma vez os cartões que o usuário aceitou na Revisão de uma geração por IA
+	 * ({@code POST .../cartoes/lote}), em {@code materiaId} de {@code usuarioId}. Tudo ou nada: uma
+	 * transação só, e se um cartão falhar no banco nenhum fica gravado. Todos entram ativos e com
+	 * {@code origem} {@link Cartao#ORIGEM_IA} (cartão manual usa {@link #criar}), na ordem
+	 * recebida.
+	 */
+	@Transactional
+	public List<Cartao> criarLote(UUID materiaId, UUID usuarioId, List<CartaoSugerido> aceitos) {
+		Materia materia = materiaService.buscarPorIdEUsuario(materiaId, usuarioId);
+		List<Cartao> cartoes = aceitos.stream()
+				.map(aceito -> new Cartao(materia, aceito.pergunta(), aceito.resposta(), Cartao.ORIGEM_IA))
+				.toList();
+		return cartaoRepository.saveAllAndFlush(cartoes);
 	}
 
 	/**

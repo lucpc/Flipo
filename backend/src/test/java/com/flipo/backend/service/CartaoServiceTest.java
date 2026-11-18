@@ -1,5 +1,6 @@
 package com.flipo.backend.service;
 
+import com.flipo.backend.ia.CartaoSugerido;
 import com.flipo.backend.model.Cartao;
 import com.flipo.backend.model.Materia;
 import com.flipo.backend.model.Usuario;
@@ -17,8 +18,10 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -140,6 +143,36 @@ class CartaoServiceTest {
 		assertThatThrownBy(() -> cartaoService.criar(materiaId, usuarioId, "pergunta", "resposta"))
 				.isInstanceOf(RecursoNaoEncontradoException.class);
 
+		verify(cartaoRepository, never()).save(any());
+	}
+
+	@Test
+	void criarLoteValidaPosseDaMateriaESalvaTodosComoIaAtivosNaOrdemRecebida() {
+		Materia materia = materia();
+		when(materiaService.buscarPorIdEUsuario(materiaId, usuarioId)).thenReturn(materia);
+		when(cartaoRepository.saveAllAndFlush(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+
+		List<Cartao> criados = cartaoService.criarLote(materiaId, usuarioId, List.of(
+				new CartaoSugerido("p1", "r1"), new CartaoSugerido("p2", "r2")));
+
+		assertThat(criados).extracting(Cartao::getPergunta, Cartao::getResposta)
+				.containsExactly(tuple("p1", "r1"), tuple("p2", "r2"));
+		assertThat(criados).allSatisfy(cartao -> {
+			assertThat(cartao.getOrigem()).isEqualTo(Cartao.ORIGEM_IA);
+			assertThat(cartao.isArquivado()).isFalse();
+			assertThat(cartao.getMateria()).isSameAs(materia);
+		});
+	}
+
+	@Test
+	void criarLoteLancaRecursoNaoEncontradoENaoSalvaQuandoMateriaPertenceAOutroUsuario() {
+		when(materiaService.buscarPorIdEUsuario(materiaId, usuarioId))
+				.thenThrow(new RecursoNaoEncontradoException());
+
+		assertThatThrownBy(() -> cartaoService.criarLote(materiaId, usuarioId, List.of(new CartaoSugerido("p", "r"))))
+				.isInstanceOf(RecursoNaoEncontradoException.class);
+
+		verify(cartaoRepository, never()).saveAllAndFlush(any());
 		verify(cartaoRepository, never()).save(any());
 	}
 
