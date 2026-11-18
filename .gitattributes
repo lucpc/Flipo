@@ -8,6 +8,4 @@
 *.yaml text eol=lf
 *.json text eol=lf
 *.java text eol=lf
-*.ts text eol=lf
-*.tsx text eol=lf
 *.sql text eol=lf

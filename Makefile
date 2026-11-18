@@ -2,8 +2,8 @@
 #
 # The data stack lives in docker-compose.yml (Postgres only). Targets that
 # need docker (up, down, logs, psql, reset) require `docker compose` on the
-# host. validate-backend/validate-frontend detect /backend and /frontend and
-# run Maven/npm tooling there.
+# host. validate-backend/validate-app detect /backend and /app and run
+# Maven/Flutter tooling there.
 
 REPO_ROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
@@ -27,7 +27,7 @@ COMPOSE := docker compose
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down logs psql reset validate-backend validate-frontend test
+.PHONY: help up down logs psql reset validate-backend validate-app test
 
 help: ## Show this help.
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -56,7 +56,7 @@ reset: ## Stop the stack AND delete the data volume. Destructive.
 psql: ## Open an interactive psql shell to Postgres.
 	$(COMPOSE) exec postgres psql -U $(DB_USER) -d $(DB_NAME)
 
-##@ Backend / Frontend
+##@ Backend / App
 
 validate-backend: ## Run backend build + tests via the Maven wrapper. Requires Postgres up (make up).
 	@if [ ! -d $(REPO_ROOT)backend ]; then \
@@ -64,10 +64,10 @@ validate-backend: ## Run backend build + tests via the Maven wrapper. Requires P
 	fi
 	(cd $(REPO_ROOT)backend && ./mvnw test)
 
-validate-frontend: ## Run frontend lint + build. Requires npm install first.
-	@if [ ! -d $(REPO_ROOT)frontend ]; then \
-		echo "frontend/ not yet scaffolded."; exit 1; \
+validate-app: ## Run the Flutter app's analyze + widget tests. Requires the Flutter SDK.
+	@if [ ! -d $(REPO_ROOT)app ]; then \
+		echo "app/ not yet scaffolded."; exit 1; \
 	fi
-	(cd $(REPO_ROOT)frontend && npm run build)
+	(cd $(REPO_ROOT)app && flutter analyze && flutter test)
 
-test: validate-backend validate-frontend ## Run both backend and frontend validation.
+test: validate-backend validate-app ## Run both backend and app validation.
