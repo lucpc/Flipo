@@ -92,9 +92,15 @@ de recurso na API é mais simples do que um schema mínimo por endpoint.
 POST /api/materias/{materiaId}/cartoes/gerar-ia
 Body: { "texto": "...", "quantidade": 10, "nivel": "definicao" }
 // ou multipart com um PDF anexado no lugar de "texto" (ainda não implementado: por ora só JSON)
-// texto: obrigatório, não pode ser em branco, no máximo 20 000 caracteres.
-// quantidade: opcional, de 1 a 20, padrão 10. nivel: opcional, "definicao" (definição simples,
-// padrão) ou "aplicacao" (aplicação/raciocínio). Fora disso → 400.
+// texto: obrigatório, não pode ser em branco, no máximo 20 000 caracteres (contados como
+// unidades UTF-16, como o String.length() do Java: um emoji conta 2).
+// quantidade: opcional, inteiro de 1 a 20, padrão 10. nivel: opcional, "definicao" (definição
+// simples, padrão) ou "aplicacao" (aplicação/raciocínio).
+// A validação vale para o valor já convertido do JSON: texto em branco ou longo demais,
+// quantidade fora de 1 a 20 e nivel com outro texto → 400. A conversão do JSON é tolerante com
+// formas não canônicas (ex: "quantidade": "5" ou 1.9, "nivel": 1), que podem ser aceitas
+// convertidas em vez de dar 400. O app manda sempre a forma canônica: número inteiro e
+// "definicao"/"aplicacao".
 200 → [{ "pergunta", "resposta" }]
 // não persiste nada — apenas sugestões para a tela de revisão. Pode vir com menos sugestões que
 // o pedido, nunca com mais.

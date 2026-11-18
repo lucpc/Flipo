@@ -14,9 +14,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.ObjectProvider;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -125,6 +127,20 @@ class GeracaoDeCartoesServiceTest {
 		List<CartaoSugerido> sugestoes = service.gerar(materiaId, usuarioId, "texto", 2, NivelCartao.DEFINICAO);
 
 		assertThat(sugestoes).extracting(CartaoSugerido::pergunta).containsExactly("p1", "p2");
+	}
+
+	@Test
+	void gerarIgnoraItemMalformadoQueFicaForaDoCorte() {
+		comMateriaDoUsuarioEGerador();
+		List<CartaoSugerido> onze = new ArrayList<>(IntStream.rangeClosed(1, 10)
+				.mapToObj(i -> new CartaoSugerido("p" + i, "r" + i))
+				.toList());
+		onze.add(new CartaoSugerido("p11", " "));
+		gerador.devolver(onze);
+
+		List<CartaoSugerido> sugestoes = service.gerar(materiaId, usuarioId, "texto", 10, NivelCartao.DEFINICAO);
+
+		assertThat(sugestoes).hasSize(10).extracting(CartaoSugerido::pergunta).endsWith("p10");
 	}
 
 	@Test

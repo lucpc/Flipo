@@ -16,8 +16,10 @@ import java.util.UUID;
  * {@code gerar-ia}: pede sugestões ao {@link GeradorDeCartoes} e as devolve, sem gravar nada.
  * Este serviço de propósito não tem acesso a {@code CartaoRepository}: a única escrita do fluxo de
  * IA é o {@code lote} ({@link CartaoService#criarLote}), depois da revisão do usuário
- * (docs/03-contrato-api.md). Também não é {@code @Transactional}, para não segurar uma conexão do
- * banco durante a chamada ao provedor.
+ * (docs/03-contrato-api.md). Também não é {@code @Transactional}: a checagem de posse usa e devolve
+ * a conexão do banco antes da chamada ao provedor. Isso depende de
+ * {@code spring.jpa.open-in-view=false} ({@code application.properties}); com o open-in-view ligado,
+ * a conexão ficaria presa até o fim da requisição.
  */
 @Service
 public class GeracaoDeCartoesService {
@@ -67,21 +69,23 @@ public class GeracaoDeCartoesService {
 	}
 
 	/**
-	 * Rejeita saída que a Revisão não consegue mostrar (lista vazia ou nula, item nulo, pergunta
-	 * ou resposta em branco) e corta o excedente se o gerador devolver mais do que o pedido.
+	 * Corta o excedente se o gerador devolver mais do que o pedido e só então rejeita saída que a
+	 * Revisão não consegue mostrar (lista vazia ou nula, item nulo, pergunta ou resposta em branco):
+	 * um item ruim que seria descartado no corte não derruba a geração.
 	 */
 	private static List<CartaoSugerido> validarSaida(List<CartaoSugerido> sugestoes, int quantidade) {
 		if (sugestoes == null || sugestoes.isEmpty()) {
 			log.warn("Gerador de cartões devolveu uma lista vazia");
 			throw new FalhaNaGeracaoException();
 		}
-		for (CartaoSugerido sugestao : sugestoes) {
+		List<CartaoSugerido> pedidas = sugestoes.subList(0, Math.min(quantidade, sugestoes.size()));
+		for (CartaoSugerido sugestao : pedidas) {
 			if (sugestao == null || estaEmBranco(sugestao.pergunta()) || estaEmBranco(sugestao.resposta())) {
 				log.warn("Gerador de cartões devolveu uma sugestão sem pergunta ou resposta");
 				throw new FalhaNaGeracaoException();
 			}
 		}
-		return List.copyOf(sugestoes.subList(0, Math.min(quantidade, sugestoes.size())));
+		return List.copyOf(pedidas);
 	}
 
 	private static boolean estaEmBranco(String valor) {
