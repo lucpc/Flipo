@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
+import '../widgets/aviso.dart';
 import '../widgets/botao_enviar.dart';
 import '../widgets/coluna_central.dart';
 import '../widgets/mensagem_de_erro.dart';
 import 'adicionar_cartao.dart';
+import 'arquivo.dart';
 import 'conta.dart';
-import 'em_breve.dart';
 import 'gerenciar_cartoes.dart';
 import 'estudo.dart';
 
@@ -324,9 +325,6 @@ class _TelaMateriaState extends State<TelaMateria> {
     }
   }
 
-  // Arquivo (#23) abre a tela provisória por enquanto.
-  void _abrir(String titulo) => _abrirTela(TelaEmBreve(titulo: titulo));
-
   Future<void> _editar() async {
     final materia = await showDialog<Materia>(
       context: context,
@@ -413,7 +411,11 @@ class _TelaMateriaState extends State<TelaMateria> {
                 height: 4,
                 child: _carregando ? const LinearProgressIndicator() : null,
               ),
-              if (aviso != null) _Aviso(aviso),
+              if (aviso != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: Aviso(aviso),
+                ),
               Expanded(
                 child: erro != null
                     ? _Falha(mensagem: erro, aoTentarDeNovo: _carregar)
@@ -442,7 +444,12 @@ class _TelaMateriaState extends State<TelaMateria> {
                                   ),
                             aoTocar: arquivados == 0
                                 ? null
-                                : () => _abrir('Arquivo'),
+                                : () => _abrirTela(
+                                    TelaArquivo(
+                                      api: widget.api,
+                                      materia: _materia,
+                                    ),
+                                  ),
                           ),
                           Padding(
                             padding: const EdgeInsets.all(16),
@@ -649,40 +656,6 @@ class _Inicial extends StatelessWidget {
         _inicial(nome),
         style: tema.textTheme.titleMedium?.copyWith(
           color: tema.colorScheme.primary,
-        ),
-      ),
-    );
-  }
-}
-
-/// Aviso discreto no topo da tela da matéria, deixado pela tela que acabou de fechar.
-class _Aviso extends StatelessWidget {
-  const _Aviso(this.texto);
-
-  final String texto;
-
-  @override
-  Widget build(BuildContext context) {
-    final tema = Theme.of(context);
-    return Semantics(
-      liveRegion: true,
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: tema.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              Icons.check_circle_outline,
-              size: 20,
-              color: tema.colorScheme.primary,
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(texto, style: tema.textTheme.bodyMedium)),
-          ],
         ),
       ),
     );

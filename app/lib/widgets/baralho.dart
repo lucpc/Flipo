@@ -13,6 +13,7 @@ import 'coluna_central.dart';
 /// "Desarquivar este cartão" em [acaoDoCartao]. A lista é do dono da tela: se ele tirar dela o
 /// cartão atual (ao desarquivar, arquivar ou excluir), a mesma posição passa a mostrar o próximo,
 /// pela pergunta; se era o último, vem o fim; com a lista vazia, o fim não oferece recomeçar.
+/// O Arquivo também usa [aviso], para confirmar o desarquivar (quadro 07c), e [rotuloDeRecomecar].
 class Baralho extends StatefulWidget {
   const Baralho({
     super.key,
@@ -24,6 +25,8 @@ class Baralho extends StatefulWidget {
     this.corDaBorda,
     this.cantoDoCartao,
     this.acaoDoCartao,
+    this.aviso,
+    this.rotuloDeRecomecar = 'Estudar de novo',
   });
 
   final List<Cartao> cartoes;
@@ -45,6 +48,13 @@ class Baralho extends StatefulWidget {
 
   /// Ação logo abaixo do cartão, acima de "Próximo cartão". Ex.: "Desarquivar este cartão".
   final Widget Function(Cartao cartao)? acaoDoCartao;
+
+  /// Aviso entre o cabeçalho e o cartão, ex.: "Cartão devolvido para os ativos". Quando ele some
+  /// é decisão do dono; no fim, não aparece.
+  final Widget? aviso;
+
+  /// O botão do fim que recomeça do primeiro cartão.
+  final String rotuloDeRecomecar;
 
   @override
   State<Baralho> createState() => _BaralhoState();
@@ -133,9 +143,15 @@ class _BaralhoState extends State<Baralho> {
     final virado = _viradoId == atual.id;
     final canto = widget.cantoDoCartao;
     final acao = widget.acaoDoCartao;
+    final aviso = widget.aviso;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (aviso != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+            child: aviso,
+          ),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
@@ -221,7 +237,7 @@ class _BaralhoState extends State<Baralho> {
               if (temCartoes) ...[
                 FilledButton(
                   onPressed: _recomecar,
-                  child: const Text('Estudar de novo'),
+                  child: Text(widget.rotuloDeRecomecar),
                 ),
                 const SizedBox(height: 12),
               ],
