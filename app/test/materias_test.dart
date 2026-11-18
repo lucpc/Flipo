@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flipo/main.dart';
+import 'package:flipo/telas/arquivo.dart';
 import 'package:flipo/telas/estudo.dart';
 import 'package:flipo/telas/gerenciar_cartoes.dart';
 import 'package:flipo/telas/autenticacao.dart';
@@ -363,7 +364,7 @@ void main() {
     );
     await tester.tap(find.text('Arquivo'));
     await tester.pumpAndSettle();
-    expect(find.text('Em breve'), findsNothing);
+    expect(find.byType(TelaArquivo), findsNothing);
   });
 
   testWidgets('a tela que fecha pode deixar um aviso no topo da matéria', (
@@ -479,7 +480,6 @@ void main() {
       await tester.tap(find.text('Gerenciar cartões'));
       await tester.pumpAndSettle();
       expect(find.byType(TelaGerenciarCartoes), findsOneWidget);
-      expect(find.text('Em breve'), findsNothing);
     });
 
     testWidgets('arquivar pelo Gerenciar cartões volta à matéria com o aviso e '

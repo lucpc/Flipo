@@ -5,8 +5,8 @@ import '../widgets/botao_enviar.dart';
 import '../widgets/coluna_central.dart';
 import '../widgets/mensagem_de_erro.dart';
 import 'adicionar_cartao.dart';
+import 'arquivo.dart';
 import 'conta.dart';
-import 'em_breve.dart';
 import 'gerenciar_cartoes.dart';
 import 'estudo.dart';
 
@@ -324,9 +324,6 @@ class _TelaMateriaState extends State<TelaMateria> {
     }
   }
 
-  // Arquivo (#23) abre a tela provisória por enquanto.
-  void _abrir(String titulo) => _abrirTela(TelaEmBreve(titulo: titulo));
-
   Future<void> _editar() async {
     final materia = await showDialog<Materia>(
       context: context,
@@ -442,7 +439,12 @@ class _TelaMateriaState extends State<TelaMateria> {
                                   ),
                             aoTocar: arquivados == 0
                                 ? null
-                                : () => _abrir('Arquivo'),
+                                : () => _abrirTela(
+                                    TelaArquivo(
+                                      api: widget.api,
+                                      materia: _materia,
+                                    ),
+                                  ),
                           ),
                           Padding(
                             padding: const EdgeInsets.all(16),
