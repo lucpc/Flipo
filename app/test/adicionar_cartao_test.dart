@@ -126,7 +126,10 @@ void main() {
 
       expect(find.text('Como você quer criar?'), findsOneWidget);
       expect(find.text('Digite a pergunta e a resposta'), findsOneWidget);
-      expect(find.text('A partir de um texto colado'), findsOneWidget);
+      expect(
+        find.text('A partir de um texto colado ou de um PDF'),
+        findsOneWidget,
+      );
       expect(
         find.text(
           'Nos dois caminhos você revisa tudo antes de salvar — nenhum '

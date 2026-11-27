@@ -76,7 +76,10 @@ Formulário com campo de pergunta e campo de resposta. Ao confirmar, vai direto 
 tela de Revisão (seção 4c) com um único cartão pré-carregado (04b).
 
 ### 4b. Gerar com IA (04c, 04d)
-- Usuário cola um texto ou anexa um PDF.
+- Usuário cola um texto ou anexa um PDF. O texto do PDF é extraído e vai para o mesmo campo,
+  onde o usuário o lê e corta o que não interessa antes de gerar. Se passar do limite do campo
+  (20 000 caracteres), o contador avisa e o botão só ativa depois do corte. PDF digitalizado, sem
+  texto selecionável, não tem o que extrair: o app avisa e o usuário pode colar o texto à mão.
 - **Quantidade de cartões**: seletor com − e +, padrão 10.
 - **Nível**: "definição simples" (padrão) ou "aplicação" (aplicação/raciocínio).
 - Botão "Gerar sugestões". Enquanto a IA trabalha, uma tela de progresso avisa: "A IA está

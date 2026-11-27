@@ -12,10 +12,13 @@ const apiUrlPadrao = String.fromEnvironment(
 );
 
 class ApiException implements Exception {
-  ApiException(this.status, this.mensagem);
+  ApiException(this.status, this.mensagem, {this.doServidor = false});
 
   final int status;
   final String mensagem;
+
+  /// A [mensagem] veio do backend (`{ "mensagem": "..." }`), e não do texto padrão do app.
+  final bool doServidor;
 
   @override
   String toString() => 'ApiException($status): $mensagem';
@@ -79,6 +82,10 @@ enum NivelDeCartao {
 
 /// Pergunta e resposta ainda sem id: uma sugestão do `gerar-ia` ou um cartão do `lote`.
 typedef PerguntaEResposta = ({String pergunta, String resposta});
+
+/// O texto extraído de um PDF pelo `extrair-texto`. Com [truncado], o PDF tinha mais texto e veio
+/// só o começo.
+typedef TextoDoPdf = ({String texto, int paginas, bool truncado});
 
 /// Por ora só o nome, para a saudação e o avatar de Minhas matérias.
 class Usuario {
@@ -238,6 +245,27 @@ class ApiClient {
         .toList();
   }
 
+  /// Extrai o texto do PDF ([bytes]), para o usuário revisar e cortar no campo do Gerar com IA.
+  /// Não gera cartões nem grava nada. O backend reconhece o PDF pelo conteúdo, não pelo nome.
+  Future<TextoDoPdf> extrairTextoDePdf(
+    List<int> bytes,
+    String nomeDoArquivo,
+  ) async {
+    final requisicao = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/api/pdf/extrair-texto'),
+    );
+    requisicao.files.add(
+      http.MultipartFile.fromBytes('arquivo', bytes, filename: nomeDoArquivo),
+    );
+    final corpo = await _enviar(requisicao) as Map<String, dynamic>;
+    return (
+      texto: corpo['texto'] as String,
+      paginas: corpo['paginas'] as int,
+      truncado: corpo['truncado'] as bool,
+    );
+  }
+
   /// Os cartões ativos da matéria (sessão de estudo) ou, com [arquivados], os do Arquivo.
   Future<List<Cartao>> listarCartoes(
     String materiaId, {
@@ -299,13 +327,19 @@ class ApiClient {
     Object? corpo,
   }) async {
     final requisicao = http.Request(metodo, Uri.parse('$baseUrl$caminho'));
-    final token = await _armazenamento.read(key: _chaveToken);
-    if (token != null) {
-      requisicao.headers['Authorization'] = 'Bearer $token';
-    }
     if (corpo != null) {
       requisicao.headers['Content-Type'] = 'application/json';
       requisicao.body = jsonEncode(corpo);
+    }
+    return _enviar(requisicao);
+  }
+
+  /// Envia com o token salvo e trata a resposta: um 401 expira a sessão, outro status fora de 2xx
+  /// vira [ApiException], e o corpo vem decodificado do JSON.
+  Future<Object?> _enviar(http.BaseRequest requisicao) async {
+    final token = await _armazenamento.read(key: _chaveToken);
+    if (token != null) {
+      requisicao.headers['Authorization'] = 'Bearer $token';
     }
 
     final resposta = await http.Response.fromStream(
@@ -323,9 +357,11 @@ class ApiClient {
       aoExpirarSessao?.call();
     }
     if (resposta.statusCode < 200 || resposta.statusCode >= 300) {
+      final doServidor = _mensagemDoServidor(texto);
       throw ApiException(
         resposta.statusCode,
-        _mensagemDeErro(resposta.statusCode, texto),
+        doServidor ?? _mensagemPadrao(resposta.statusCode),
+        doServidor: doServidor != null,
       );
     }
     return texto.isEmpty ? null : jsonDecode(texto);
@@ -333,7 +369,7 @@ class ApiClient {
 
   // Mesmo formato do GlobalExceptionHandler do backend: `{ "mensagem": "..." }`. O 401 do filtro
   // de JWT vem sem esse campo, daí o texto padrão.
-  String _mensagemDeErro(int status, String texto) {
+  String? _mensagemDoServidor(String texto) {
     try {
       final corpo = jsonDecode(texto);
       if (corpo is Map && corpo['mensagem'] is String) {
@@ -342,8 +378,10 @@ class ApiClient {
     } on FormatException {
       // corpo vazio ou não-JSON
     }
-    return status == 401
-        ? 'Sessão expirada. Faça login novamente.'
-        : 'Falha na requisição (status $status).';
+    return null;
   }
+
+  String _mensagemPadrao(int status) => status == 401
+      ? 'Sessão expirada. Faça login novamente.'
+      : 'Falha na requisição (status $status).';
 }

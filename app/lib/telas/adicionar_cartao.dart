@@ -55,11 +55,10 @@ class TelaAdicionarCartao extends StatelessWidget {
                   _TelaCriarManual(api: api, materiaId: materiaId),
                 ),
               ),
-              // O PDF chega no segundo PR do #16; até lá, a descrição não o promete.
               _Caminho(
                 icone: Icons.auto_awesome_outlined,
                 titulo: 'Gerar com IA',
-                descricao: 'A partir de um texto colado',
+                descricao: 'A partir de um texto colado ou de um PDF',
                 aoTocar: () => _abrir(
                   context,
                   TelaGerarIa(api: api, materiaId: materiaId),

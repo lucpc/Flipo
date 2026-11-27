@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flipo/api/api_client.dart';
 import 'package:flipo/main.dart';
 import 'package:flipo/telas/autenticacao.dart';
 import 'package:flipo/telas/gerar_ia.dart';
 import 'package:flipo/telas/materias.dart';
+import 'package:flipo/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -91,6 +93,11 @@ void main() {
       null;
 
   final campoTexto = find.widgetWithText(TextField, 'Texto');
+
+  final anexar = find.ancestor(
+    of: find.text('Anexar PDF'),
+    matching: find.byWidgetPredicate((w) => w is OutlinedButton),
+  );
 
   String textoDoCampo(WidgetTester tester) =>
       tester.widget<TextField>(campoTexto).controller!.text;
@@ -183,13 +190,15 @@ void main() {
   ) async {
     await abrirGerarIa(tester, {});
 
-    expect(find.text('A partir de um texto colado'), findsOneWidget);
+    expect(
+      find.text('A partir de um texto colado ou de um PDF'),
+      findsOneWidget,
+    );
     expect(find.text('0 / 20.000'), findsOneWidget);
     expect(quantidade(tester), '10');
     expect(nivelEscolhido(tester), NivelDeCartao.definicao);
     expect(habilitado(tester, botao('Gerar sugestões')), isFalse);
-    // Só o texto colado, por ora: nada de anexar PDF.
-    expect(find.textContaining('PDF'), findsNothing);
+    expect(habilitado(tester, anexar), isTrue);
 
     await tester.enterText(campoTexto, '  \n ');
     await tester.pump();
@@ -527,5 +536,454 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byType(TelaLogin), findsOneWidget);
     expect(find.text('Sua sessão expirou. Entre de novo.'), findsOneWidget);
+  });
+
+  group('anexar PDF', () {
+    const extrair = 'POST /api/pdf/extrair-texto';
+    const lendo = 'Lendo o PDF…';
+    const truncado = 'O PDF é longo: só o começo dele foi lido.';
+    const substituir = 'Substituir o texto atual pelo do PDF?';
+    late int escolhas;
+
+    setUp(() => escolhas = 0);
+
+    /// O seletor de arquivos falso: o usuário escolhe "aula.pdf".
+    Future<PdfEscolhido?> escolherAula() async {
+      escolhas++;
+      final bytes = utf8.encode('%PDF-1.7');
+      return (nome: 'aula.pdf', tamanho: bytes.length, ler: () async => bytes);
+    }
+
+    http.Response textoDoPdf(
+      String texto, {
+      int paginas = 3,
+      bool truncado = false,
+    }) => json(200, {'texto': texto, 'paginas': paginas, 'truncado': truncado});
+
+    /// Abre o Gerar com IA direto, num celular de 390×844, com o seletor [escolherPdf] no lugar
+    /// do plugin. [respostas] mapeia "MÉTODO caminho" para a resposta do backend falso.
+    Future<void> abrir(
+      WidgetTester tester,
+      Map<String, Resposta> respostas, {
+      Future<PdfEscolhido?> Function()? escolherPdf,
+    }) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: temaFlipo,
+          home: TelaGerarIa(
+            api: ApiClient(
+              httpClient: MockClient((requisicao) async {
+                requisicoes.add(requisicao);
+                return respostas['${requisicao.method} ${requisicao.url.path}']!(
+                  requisicao,
+                );
+              }),
+            ),
+            materiaId: 'm1',
+            escolherPdf: escolherPdf ?? escolherAula,
+          ),
+        ),
+      );
+    }
+
+    Future<void> tocarAnexar(WidgetTester tester) async {
+      await tester.ensureVisible(anexar);
+      await tester.tap(anexar);
+      await tester.pump();
+    }
+
+    Iterable<http.Request> extracoes() =>
+        requisicoes.where((r) => '${r.method} ${r.url.path}' == extrair);
+
+    testWidgets('com o campo vazio, o texto do PDF vai para o campo, com o '
+        'nome e as páginas, e é o que vai para a IA', (tester) async {
+      final resposta = Completer<http.Response>();
+      await abrir(tester, {
+        extrair: (_) => resposta.future,
+        gerarIa: sugestoes,
+      });
+
+      await tocarAnexar(tester);
+      expect(find.text(lendo), findsOneWidget);
+      expect(habilitado(tester, anexar), isFalse);
+      expect(extracoes(), hasLength(1));
+      expect(extracoes().single.headers['Authorization'], 'Bearer jwt-ana');
+
+      resposta.complete(textoDoPdf('Camada de transporte.'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(substituir), findsNothing);
+      expect(textoDoCampo(tester), 'Camada de transporte.');
+      expect(find.text('aula.pdf · 3 páginas'), findsOneWidget);
+      expect(find.text(truncado), findsNothing);
+      expect(find.text(lendo), findsNothing);
+      expect(habilitado(tester, anexar), isTrue);
+      expect(corposDe(gerarIa), isEmpty);
+
+      await tester.tap(botao('Gerar sugestões'));
+      await tester.pumpAndSettle();
+      expect(corposDe(gerarIa), [
+        {
+          'texto': 'Camada de transporte.',
+          'quantidade': 10,
+          'nivel': 'definicao',
+        },
+      ]);
+      expect(find.text('Revisar sugestões (3)'), findsOneWidget);
+    });
+
+    testWidgets(
+      'com texto no campo, pergunta antes; substituir troca o texto',
+      (tester) async {
+        final resposta = Completer<http.Response>();
+        await abrir(tester, {extrair: (_) => resposta.future});
+        await tester.enterText(campoTexto, 'Meu texto');
+        await tester.pump();
+
+        await tocarAnexar(tester);
+        // Lendo o PDF, nem anexar outro nem gerar.
+        expect(find.text(lendo), findsOneWidget);
+        expect(habilitado(tester, anexar), isFalse);
+        expect(habilitado(tester, botao('Gerar sugestões')), isFalse);
+
+        resposta.complete(textoDoPdf('Texto do PDF', paginas: 1));
+        await tester.pumpAndSettle();
+        expect(find.text(substituir), findsOneWidget);
+        expect(textoDoCampo(tester), 'Meu texto');
+
+        await tester.tap(find.text('Substituir'));
+        await tester.pumpAndSettle();
+        expect(find.text(substituir), findsNothing);
+        expect(textoDoCampo(tester), 'Texto do PDF');
+        expect(find.text('aula.pdf · 1 página'), findsOneWidget);
+        expect(habilitado(tester, botao('Gerar sugestões')), isTrue);
+      },
+    );
+
+    testWidgets('recusar a substituição deixa o texto do campo como estava', (
+      tester,
+    ) async {
+      await abrir(tester, {extrair: (_) => textoDoPdf('Texto do PDF')});
+      await tester.enterText(campoTexto, 'Meu texto');
+      await tester.pump();
+
+      await tocarAnexar(tester);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(substituir), findsNothing);
+      expect(textoDoCampo(tester), 'Meu texto');
+      expect(find.textContaining('aula.pdf'), findsNothing);
+    });
+
+    testWidgets('PDF truncado: avisa que só o começo foi lido', (tester) async {
+      await abrir(tester, {
+        extrair: (_) => textoDoPdf('Começo do livro', truncado: true),
+      });
+
+      await tocarAnexar(tester);
+      await tester.pumpAndSettle();
+
+      expect(textoDoCampo(tester), 'Começo do livro');
+      expect(find.text(truncado), findsOneWidget);
+    });
+
+    testWidgets('cortar o texto do PDF mantém o nome e o aviso; esvaziar o '
+        'campo os tira, e não voltam com outro texto', (tester) async {
+      await abrir(tester, {
+        extrair: (_) =>
+            textoDoPdf('Começo do livro', paginas: 12, truncado: true),
+      });
+      await tocarAnexar(tester);
+      await tester.pumpAndSettle();
+      expect(find.text('aula.pdf · 12 páginas'), findsOneWidget);
+
+      await tester.enterText(campoTexto, 'Começo');
+      await tester.pump();
+      expect(find.text('aula.pdf · 12 páginas'), findsOneWidget);
+      expect(find.text(truncado), findsOneWidget);
+
+      await tester.enterText(campoTexto, '  ');
+      await tester.pump();
+      expect(find.textContaining('aula.pdf'), findsNothing);
+      expect(find.text(truncado), findsNothing);
+
+      await tester.enterText(campoTexto, 'Outro texto, colado');
+      await tester.pump();
+      expect(find.textContaining('aula.pdf'), findsNothing);
+      expect(find.text(truncado), findsNothing);
+    });
+
+    testWidgets('o erro do PDF some quando o usuário edita o campo, não '
+        'quando só move o cursor', (tester) async {
+      const semTexto =
+          'Este PDF não tem texto selecionável (talvez seja digitalizado). '
+          'Cole o texto à mão.';
+      await abrir(tester, {
+        extrair: (_) => json(422, {'mensagem': 'Mensagem do servidor.'}),
+      });
+      await tester.enterText(campoTexto, 'Meu texto');
+      await tester.pump();
+      await tocarAnexar(tester);
+      await tester.pumpAndSettle();
+      expect(find.text(semTexto), findsOneWidget);
+
+      tester.testTextInput.updateEditingValue(
+        const TextEditingValue(
+          text: 'Meu texto',
+          selection: TextSelection.collapsed(offset: 3),
+        ),
+      );
+      await tester.pump();
+      expect(find.text(semTexto), findsOneWidget);
+
+      await tester.enterText(campoTexto, 'Meu texto colado à mão');
+      await tester.pump();
+      expect(find.text(semTexto), findsNothing);
+    });
+
+    testWidgets('acima de 20 000, o campo aceita o texto do PDF e só gera '
+        'depois do corte; apagar não leva outro trecho', (tester) async {
+      final pdf = '${'A' * 10000}${'B' * 10010}';
+      await abrir(tester, {
+        extrair: (_) => textoDoPdf(pdf),
+        gerarIa: sugestoes,
+      });
+      await tocarAnexar(tester);
+      await tester.pumpAndSettle();
+
+      const corte = 'Corte o texto para até 20.000 caracteres';
+      TextStyle? estiloDoContador() =>
+          tester.widget<TextField>(campoTexto).decoration!.counterStyle;
+      expect(textoDoCampo(tester), pdf);
+      expect(find.text('20.010 / 20.000'), findsOneWidget);
+      expect(estiloDoContador(), temaFlipo.inputDecorationTheme.errorStyle);
+      expect(find.text(corte), findsOneWidget);
+      expect(habilitado(tester, botao('Gerar sugestões')), isFalse);
+
+      await tester.showKeyboard(campoTexto);
+      void editar(String texto, int cursor) =>
+          tester.testTextInput.updateEditingValue(
+            TextEditingValue(
+              text: texto,
+              selection: TextSelection.collapsed(offset: cursor),
+            ),
+          );
+
+      // Mover o cursor não mexe no texto.
+      editar(pdf, 5000);
+      await tester.pump();
+      expect(textoDoCampo(tester), pdf);
+
+      // Apagar 5 "A" no meio leva só esses 5.
+      final semCincoA = '${'A' * 9995}${'B' * 10010}';
+      editar(semCincoA, 9995);
+      await tester.pump();
+      expect(textoDoCampo(tester), semCincoA);
+      expect(habilitado(tester, botao('Gerar sugestões')), isFalse);
+
+      // Trocar um caractere por outro (mesmo tamanho) passa.
+      final trocado = '${'A' * 9994}C${'B' * 10010}';
+      editar(trocado, 9995);
+      await tester.pump();
+      expect(textoDoCampo(tester), trocado);
+
+      // Ainda acima do limite, o que aumentaria o texto não entra.
+      editar('${'A' * 9994}CX${'B' * 10010}', 9996);
+      await tester.pump();
+      expect(textoDoCampo(tester), trocado);
+
+      // Cortado até o limite, o aviso some e gerar ativa.
+      final cortado = '${'A' * 9994}C${'B' * 10005}';
+      editar(cortado, cortado.length);
+      await tester.pump();
+      expect(textoDoCampo(tester), cortado);
+      expect(find.text('20.000 / 20.000'), findsOneWidget);
+      expect(find.text(corte), findsNothing);
+      expect(habilitado(tester, botao('Gerar sugestões')), isTrue);
+
+      await tester.ensureVisible(botao('Gerar sugestões'));
+      await tester.pumpAndSettle();
+      await tester.tap(botao('Gerar sugestões'));
+      await tester.pumpAndSettle();
+      expect(corposDe(gerarIa), [
+        {'texto': cortado, 'quantidade': 10, 'nivel': 'definicao'},
+      ]);
+    });
+
+    for (final (descricao, resposta, mensagem) in <(String, Resposta, String)>[
+      (
+        '400 com a mensagem do servidor',
+        (_) => json(400, {
+          'mensagem': 'Este PDF é pesado demais para extrair o texto.',
+        }),
+        'Este PDF é pesado demais para extrair o texto.',
+      ),
+      (
+        '400 sem JSON (página de um proxy)',
+        (_) => http.Response(
+          '<html><body>Bad Request</body></html>',
+          400,
+          headers: {'content-type': 'text/html'},
+        ),
+        'Não foi possível ler este PDF. Ele pode ser inválido, estar '
+            'corrompido ou protegido por senha.',
+      ),
+      (
+        '400 com a mensagem vazia',
+        (_) => json(400, {'mensagem': '  '}),
+        'Não foi possível ler este PDF. Ele pode ser inválido, estar '
+            'corrompido ou protegido por senha.',
+      ),
+      (
+        '413',
+        (_) => json(413, {'mensagem': 'Mensagem do servidor.'}),
+        'O arquivo passa de 10 MB. Escolha um PDF menor.',
+      ),
+      (
+        '422',
+        (_) => json(422, {'mensagem': 'Mensagem do servidor.'}),
+        'Este PDF não tem texto selecionável (talvez seja digitalizado). '
+            'Cole o texto à mão.',
+      ),
+      (
+        '503',
+        (_) => json(503, {'mensagem': 'Mensagem do servidor.'}),
+        'O servidor está ocupado lendo outros PDFs. Tente de novo em '
+            'instantes.',
+      ),
+      (
+        'sem conexão',
+        (_) => throw http.ClientException('sem rede'),
+        'Não foi possível conectar ao servidor.',
+      ),
+    ]) {
+      testWidgets('$descricao: mostra a mensagem e o texto fica intacto; um '
+          'PDF lido depois limpa a mensagem', (tester) async {
+        var chamadas = 0;
+        await abrir(tester, {
+          extrair: (requisicao) => chamadas++ == 0
+              ? resposta(requisicao)
+              : textoDoPdf('Texto do PDF'),
+        });
+        await tester.enterText(campoTexto, 'Meu texto');
+        await tester.pump();
+
+        await tocarAnexar(tester);
+        await tester.pumpAndSettle();
+
+        expect(find.text(mensagem), findsOneWidget);
+        expect(find.text('Mensagem do servidor.'), findsNothing);
+        expect(find.text(substituir), findsNothing);
+        expect(find.text(lendo), findsNothing);
+        expect(textoDoCampo(tester), 'Meu texto');
+        expect(habilitado(tester, anexar), isTrue);
+        expect(habilitado(tester, botao('Gerar sugestões')), isTrue);
+
+        await tocarAnexar(tester);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Substituir'));
+        await tester.pumpAndSettle();
+        expect(find.text(mensagem), findsNothing);
+        expect(textoDoCampo(tester), 'Texto do PDF');
+      });
+    }
+
+    const muitoGrande = 'O arquivo passa de 10 MB. Escolha um PDF menor.';
+
+    testWidgets('acima de 10 MiB, nem lê nem envia o arquivo: avisa e o texto '
+        'fica intacto', (tester) async {
+      var leituras = 0;
+      await abrir(
+        tester,
+        {},
+        escolherPdf: () async => (
+          nome: 'livro.pdf',
+          tamanho: tamanhoMaximoDoPdf + 1,
+          ler: () async {
+            leituras++;
+            return Uint8List(tamanhoMaximoDoPdf + 1);
+          },
+        ),
+      );
+      await tester.enterText(campoTexto, 'Meu texto');
+      await tester.pump();
+
+      await tocarAnexar(tester);
+      await tester.pumpAndSettle();
+
+      expect(find.text(muitoGrande), findsOneWidget);
+      expect(leituras, 0);
+      expect(requisicoes, isEmpty);
+      expect(find.text(lendo), findsNothing);
+      expect(textoDoCampo(tester), 'Meu texto');
+      expect(habilitado(tester, anexar), isTrue);
+    });
+
+    testWidgets('sem o tamanho informado, confere depois de ler: acima de '
+        '10 MiB não envia', (tester) async {
+      await abrir(
+        tester,
+        {},
+        escolherPdf: () async => (
+          nome: 'livro.pdf',
+          tamanho: null,
+          ler: () async => Uint8List(tamanhoMaximoDoPdf + 1),
+        ),
+      );
+
+      await tocarAnexar(tester);
+      await tester.pumpAndSettle();
+
+      expect(find.text(muitoGrande), findsOneWidget);
+      expect(requisicoes, isEmpty);
+      expect(find.text(lendo), findsNothing);
+    });
+
+    testWidgets('exatamente 10 MiB é enviado', (tester) async {
+      await abrir(
+        tester,
+        {extrair: (_) => textoDoPdf('Texto do livro')},
+        escolherPdf: () async => (
+          nome: 'livro.pdf',
+          tamanho: tamanhoMaximoDoPdf,
+          ler: () async => Uint8List(tamanhoMaximoDoPdf),
+        ),
+      );
+
+      await tocarAnexar(tester);
+      await tester.pumpAndSettle();
+
+      expect(extracoes(), hasLength(1));
+      expect(find.text(muitoGrande), findsNothing);
+      expect(textoDoCampo(tester), 'Texto do livro');
+    });
+
+    testWidgets('cancelar o seletor não faz nada', (tester) async {
+      await abrir(
+        tester,
+        {},
+        escolherPdf: () async {
+          escolhas++;
+          return null;
+        },
+      );
+      await tester.enterText(campoTexto, 'Meu texto');
+      await tester.pump();
+
+      await tocarAnexar(tester);
+      await tester.pumpAndSettle();
+
+      expect(escolhas, 1);
+      expect(requisicoes, isEmpty);
+      expect(find.text(lendo), findsNothing);
+      expect(find.text(substituir), findsNothing);
+      expect(textoDoCampo(tester), 'Meu texto');
+      expect(habilitado(tester, anexar), isTrue);
+    });
   });
 }
