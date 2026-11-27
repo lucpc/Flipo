@@ -57,11 +57,12 @@ import java.util.Set;
  *   <li><b>Prazo</b>: conferido a cada página, operador e glifo, cobre o que os outros deixam passar.</li>
  * </ul>
  *
- * <p>O que fica aberto, para a issue #75 (isolar a extração num processo separado): o índice do
- * arquivo, que o {@code Loader.loadPDF} lê antes de qualquer teto (uma tabela XRef com um
- * {@code /Size} absurdo esgota a memória); a expansão de {@code bfrange} de um {@code ToUnicode} de
- * poucos KB, que o {@code CMapParser} transforma em milhões de entradas dentro de um único
- * {@code Tf}, onde o prazo não alcança; e a interpretação da fonte em si, dentro dos 8 MB.
+ * <p>O que estes tetos não alcançam fica com o processo filho onde a extração roda
+ * ({@link ProcessoDeExtracaoPdf}), com heap e prazo próprios: o índice do arquivo, que o
+ * {@code Loader.loadPDF} lê antes de qualquer teto (uma tabela XRef com um {@code /Size} absurdo
+ * esgota a memória); a expansão de {@code bfrange} de um {@code ToUnicode} de poucos KB, que o
+ * {@code CMapParser} transforma em milhões de entradas dentro de um único {@code Tf}, onde o prazo
+ * não alcança; e a interpretação da fonte em si, dentro dos 8 MB.
  *
  * <p>{@link PesadoDemais} é unchecked de propósito: o PDFBox engole {@code IOException} lançada dentro
  * do operador {@code Do} (que desenha um form) e seguiria em frente.

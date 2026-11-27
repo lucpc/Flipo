@@ -118,3 +118,34 @@ devolve só o provedor, nunca a chave).
   produção, o domínio exato do deploy web do app. Nunca um curinga como `https://*.vercel.app`,
   que aceitaria qualquer site hospedado na Vercel. Sem `allowCredentials`, porque o JWT vai no
   cabeçalho.
+
+## Extração de PDF em processo separado
+
+O `POST /api/pdf/extrair-texto` não lê o PDF no processo do backend. Para cada PDF, o backend abre
+um processo Java filho (`ProcessoDeExtracaoPdf`), manda o arquivo pela entrada padrão e recebe o
+texto pela saída padrão. Um PDF montado para esgotar a memória do PDFBox derruba só esse processo, e
+o usuário recebe 400. O filho usa o mesmo `java` do backend, não herda nenhuma variável de ambiente
+(onde ficam a chave da Anthropic, a senha do banco e o segredo do JWT) nem propriedade, exceto a
+pasta temporária, e não abre o contexto do Spring. No Linux, o filho é o primeiro que o kernel
+encerra se a máquina ficar sem memória (`oom_score_adj` 1000); encerrado assim, o PDF também é
+recusado como pesado demais.
+
+| Propriedade | Padrão | Efeito |
+|---|---|---|
+| `flipo.pdf.processo.heap` | `256m` | Heap máximo do filho. Passou dele, o filho sai e o PDF é recusado como pesado demais |
+| `flipo.pdf.processo.prazo` | `15s` | Tempo máximo do filho (partida, 10 s de extração e folga). Passou dele, é encerrado à força |
+| `flipo.pdf.vagas` | `2` | Filhos ao mesmo tempo. Quem espera mais de 15 s por uma vaga recebe 503 |
+
+**Custo:** cada PDF paga a partida de uma JVM, uns 0,4 s com o jar extraído e 0,6 s com o jar
+executável (`java -jar`), medidos com um PDF pequeno.
+
+**Memória:** cada filho ocupa até o heap dele mais uns 60 MB da própria JVM (medido: ~315 MB com
+heap de 256 MB, de 100 a 150 MB com um PDF comum). A RAM do plano precisa cobrir a memória do
+backend mais vagas × (heap do filho + 60 MB): com os padrões, até ~640 MB só para as extrações. Num
+plano menor, reduzir as vagas ou o heap do filho, e fixar o heap do backend (`-Xmx`), que sem isso a
+JVM calcula pela RAM da máquina.
+
+**Deploy (Render/Railway, Docker; ainda sem Dockerfile):** a imagem precisa de uma JRE completa,
+com o `java` em `bin/`, porque o backend abre o filho com ele. Funciona com o jar executável e com o
+jar extraído (`java -Djarmode=tools -jar backend.jar extract`, o layout recomendado para Docker),
+que parte mais rápido.

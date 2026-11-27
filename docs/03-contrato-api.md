@@ -136,7 +136,8 @@ Body: multipart/form-data com o campo "arquivo" (um PDF)
 // paginas: o número de páginas do PDF.
 400 → { "mensagem" } sem o campo "arquivo", arquivo vazio, arquivo que não é PDF, PDF corrompido
 //     ou protegido por senha, ou PDF pesado demais para extrair (passa dos limites de trabalho
-//     antes de sair qualquer texto). A mensagem é escrita para o usuário final e diz qual é o
+//     antes de sair qualquer texto, ou esgota a memória ou o prazo do processo que extrai o
+//     texto). A mensagem é escrita para o usuário final e diz qual é o
 //     caso; o cliente pode mostrá-la como veio.
 413 → { "mensagem" } arquivo acima de 10 MB (10 × 1024 × 1024 bytes)
 //     O cliente deve conferir o tamanho antes de enviar: com um arquivo muito maior (acima de
@@ -149,11 +150,13 @@ Body: multipart/form-data com o campo "arquivo" (um PDF)
 ```
 
 **Limites da extração de PDF.** O PDF vem de qualquer usuário cadastrado, e um arquivo pequeno
-pode ser montado para descomprimir para gigabytes. A extração tem tetos de volume descomprimido,
-de tempo e de extrações simultâneas, mas ainda roda no mesmo processo do backend, e há caminhos
-internos do PDFBox (índice do arquivo, tabelas de caracteres) que esses tetos não cobrem. Isolar a
-extração num processo separado é pré-requisito para publicar o backend com cadastro aberto
-([#75](https://github.com/lucpc/Flipo/issues/75), que bloqueia a #46).
+pode ser montado para descomprimir para gigabytes ou esgotar a memória do leitor de PDF. A extração
+roda num processo separado do backend, com memória e prazo próprios, e tem tetos de volume
+descomprimido, de tempo e de extrações simultâneas. Se o PDF esgota a memória desse processo ou
+passa do prazo, só o processo é encerrado: a resposta é o 400 de PDF pesado demais, e o backend
+continua atendendo as outras requisições ([#75](https://github.com/lucpc/Flipo/issues/75)). Um PDF
+legítimo com uma tabela de caracteres (`ToUnicode`) gigante, de milhões de entradas, também passa do
+limite de memória padrão e é recusado como pesado demais.
 
 A separação em duas chamadas (`gerar-ia` sugere, `lote` persiste) é o que garante que a IA nunca
 grava nada diretamente no banco — sempre passa pela aprovação explícita do usuário. O `gerar-ia`

@@ -11,6 +11,7 @@ public final class ExtracoesDeTeste {
 
 	/** Sem nenhuma vaga de extração, e esperando só 50 ms por uma. */
 	public static ExtracaoDeTextoPdfService semVagas() {
-		return new ExtracaoDeTextoPdfService(Duration.ofSeconds(10), new Semaphore(0, true), Duration.ofMillis(50));
+		return new ExtracaoDeTextoPdfService(Duration.ofSeconds(10), ExtracaoDeTextoPdfService.HEAP_PADRAO,
+				Duration.ofSeconds(15), new Semaphore(0, true), Duration.ofMillis(50), ProcessoDeExtracaoPdf.class.getName());
 	}
 }
