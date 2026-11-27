@@ -215,6 +215,81 @@ void main() {
     expect(requisicoes.single.url.toString(), 'http://api.teste/api/materias');
   });
 
+  test('extrair-texto manda o PDF em multipart, no campo "arquivo", com o '
+      'token, e lê o texto', () async {
+    final api = clientRespondendo(
+      200,
+      '{"texto":"Camada de transporte","paginas":3,"truncado":true}',
+    );
+    await api.salvarToken('jwt-123');
+    final pdf = utf8.encode('%PDF-1.7 conteúdo');
+
+    final lido = await api.extrairTextoDePdf(pdf, 'aula 1.pdf');
+
+    final requisicao = requisicoes.single;
+    expect(
+      '${requisicao.method} ${requisicao.url}',
+      'POST http://api.teste/api/pdf/extrair-texto',
+    );
+    expect(requisicao.headers['Authorization'], 'Bearer jwt-123');
+    final tipo = requisicao.headers['content-type']!;
+    expect(tipo, startsWith('multipart/form-data; boundary='));
+    final limite = tipo.substring(tipo.indexOf('boundary=') + 9);
+    // Uma parte só, com o arquivo; o fim do corpo é o delimitador de fechamento.
+    final partes = latin1
+        .decode(requisicao.bodyBytes)
+        .split('--$limite')
+        .where((p) => p.isNotEmpty)
+        .toList();
+    expect(partes, hasLength(2));
+    expect(partes.last, '--\r\n');
+    final [cabecalhos, conteudo] = partes.first.split('\r\n\r\n');
+    expect(
+      cabecalhos,
+      contains(
+        'content-disposition: form-data; name="arquivo"; '
+        'filename="aula 1.pdf"',
+      ),
+    );
+    expect(latin1.encode(conteudo), [...pdf, ...'\r\n'.codeUnits]);
+    expect(lido.texto, 'Camada de transporte');
+    expect(lido.paginas, 3);
+    expect(lido.truncado, isTrue);
+  });
+
+  test(
+    'extrair-texto: um erro vira ApiException, e o 401 expira a sessão',
+    () async {
+      final api = clientRespondendo(
+        422,
+        '{"mensagem":"O PDF não tem texto selecionável."}',
+      );
+      await api.salvarToken('jwt-123');
+
+      await expectLater(
+        api.extrairTextoDePdf([1, 2, 3], 'scan.pdf'),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.status, 'status', 422)
+              .having((e) => e.doServidor, 'doServidor', isTrue),
+        ),
+      );
+      expect(await armazenamento.read(key: 'flipo_token'), 'jwt-123');
+
+      final expirada = clientRespondendo(401, '');
+      await expectLater(
+        expirada.extrairTextoDePdf([1, 2, 3], 'aula.pdf'),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.status, 'status', 401)
+              .having((e) => e.doServidor, 'doServidor', isFalse),
+        ),
+      );
+      expect(await armazenamento.read(key: 'flipo_token'), isNull);
+      expect(sessoesExpiradas, 1);
+    },
+  );
+
   test('401 atrasado não apaga um token salvo depois do envio', () async {
     late ApiClient api;
     api = ApiClient(

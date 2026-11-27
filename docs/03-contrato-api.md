@@ -91,7 +91,8 @@ de recurso na API é mais simples do que um schema mínimo por endpoint.
 ```
 POST /api/materias/{materiaId}/cartoes/gerar-ia
 Body: { "texto": "...", "quantidade": 10, "nivel": "definicao" }
-// ou multipart com um PDF anexado no lugar de "texto" (ainda não implementado: por ora só JSON)
+// só JSON. O PDF não vem aqui: o app extrai o texto antes, pelo POST /api/pdf/extrair-texto
+// (abaixo), e o usuário revisa e corta esse texto no campo antes de gerar.
 // texto: obrigatório, não pode ser em branco, no máximo 20 000 caracteres (contados como
 // unidades UTF-16, como o String.length() do Java: um emoji conta 2).
 // quantidade: opcional, inteiro de 1 a 20, padrão 10. nivel: opcional, "definicao" (definição
@@ -117,6 +118,42 @@ Body: { "cartoes": [{ "pergunta", "resposta" }] }
 // na mesma ordem do body
 404 → matéria inexistente ou de outro usuário
 ```
+
+```
+POST /api/pdf/extrair-texto
+Body: multipart/form-data com o campo "arquivo" (um PDF)
+// Só extrai o texto: não gera cartões, não grava nada e não guarda o arquivo (é lido em memória
+// ou em arquivo temporário e descartado ao fim da requisição). Exige login, como o resto da API.
+// O arquivo é reconhecido pelo conteúdo (assinatura "%PDF-"), não pelo nome nem pelo
+// Content-Type enviado.
+200 → { "texto", "paginas", "truncado" }
+// texto: o texto do PDF na ordem das páginas, com espaços repetidos reduzidos a um e quebras de
+// linha preservadas entre parágrafos, sem espaços nas pontas. No máximo 100 000 caracteres
+// (unidades UTF-16): se o PDF tiver mais, vem o começo e "truncado": true. Também vem
+// "truncado": true, com o texto lido até ali, quando a extração para num dos limites de trabalho
+// do servidor (volume descomprimido ou tempo) depois de já ter extraído algum texto. O texto pode
+// passar dos 20 000 do gerar-ia: quem corta é o usuário, no campo do app, antes de gerar.
+// paginas: o número de páginas do PDF.
+400 → { "mensagem" } sem o campo "arquivo", arquivo vazio, arquivo que não é PDF, PDF corrompido
+//     ou protegido por senha, ou PDF pesado demais para extrair (passa dos limites de trabalho
+//     antes de sair qualquer texto). A mensagem é escrita para o usuário final e diz qual é o
+//     caso; o cliente pode mostrá-la como veio.
+413 → { "mensagem" } arquivo acima de 10 MB (10 × 1024 × 1024 bytes)
+//     O cliente deve conferir o tamanho antes de enviar: com um arquivo muito maior (acima de
+//     ~32 MB, o max-swallow-size do servidor), o servidor responde 413 cedo e fecha a conexão,
+//     e um cliente que ainda está enviando vê só um erro de rede.
+422 → { "mensagem" } PDF sem texto selecionável (ex: digitalizado, só com imagens): não há o que
+//     extrair; o usuário pode colar o texto à mão
+503 → { "mensagem" } servidor ocupado: o número de extrações simultâneas é limitado, e esta
+//     esperou demais por uma vaga. Dá para tentar de novo.
+```
+
+**Limites da extração de PDF.** O PDF vem de qualquer usuário cadastrado, e um arquivo pequeno
+pode ser montado para descomprimir para gigabytes. A extração tem tetos de volume descomprimido,
+de tempo e de extrações simultâneas, mas ainda roda no mesmo processo do backend, e há caminhos
+internos do PDFBox (índice do arquivo, tabelas de caracteres) que esses tetos não cobrem. Isolar a
+extração num processo separado é pré-requisito para publicar o backend com cadastro aberto
+([#75](https://github.com/lucpc/Flipo/issues/75), que bloqueia a #46).
 
 A separação em duas chamadas (`gerar-ia` sugere, `lote` persiste) é o que garante que a IA nunca
 grava nada diretamente no banco — sempre passa pela aprovação explícita do usuário. O `gerar-ia`
