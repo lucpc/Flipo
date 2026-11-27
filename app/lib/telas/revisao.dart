@@ -22,7 +22,7 @@ class SugestaoDeCartao {
 }
 
 /// Grava os [aceitos] (na ordem da tela) de uma vez: tudo ou nada. Se falha, lança o erro e nada
-/// foi salvo. A criação manual tem sempre um cartão só (`POST .../cartoes`); a da IA vai usar o
+/// foi salvo. A criação manual tem sempre um cartão só (`POST .../cartoes`); a da IA usa o
 /// `POST .../cartoes/lote`.
 typedef SalvarCartoes = Future<void> Function(List<SugestaoDeCartao> aceitos);
 

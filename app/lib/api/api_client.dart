@@ -68,6 +68,18 @@ class Cartao {
   final bool arquivado;
 }
 
+/// Nível das perguntas geradas pela IA. O nome é o valor do campo `nivel` da API.
+enum NivelDeCartao {
+  /// Definição simples, o padrão.
+  definicao,
+
+  /// Aplicação/raciocínio.
+  aplicacao,
+}
+
+/// Pergunta e resposta ainda sem id: uma sugestão do `gerar-ia` ou um cartão do `lote`.
+typedef PerguntaEResposta = ({String pergunta, String resposta});
+
 /// Por ora só o nome, para a saudação e o avatar de Minhas matérias.
 class Usuario {
   Usuario({required this.nome});
@@ -173,6 +185,58 @@ class ApiClient {
         )
         as Map<String, dynamic>,
   );
+
+  /// Sugestões de cartões geradas pela IA a partir do [texto]. Não grava nada: o que o usuário
+  /// aceitar na Revisão vai depois para o [criarCartoesEmLote]. Pode vir com menos sugestões que
+  /// a [quantidade], nunca com mais. Leva de segundos a cerca de dois minutos.
+  Future<List<PerguntaEResposta>> gerarIa(
+    String materiaId,
+    String texto,
+    int quantidade,
+    NivelDeCartao nivel,
+  ) async {
+    final corpo =
+        await _requisitar(
+              'POST',
+              '/api/materias/${Uri.encodeComponent(materiaId)}/cartoes/gerar-ia',
+              corpo: {
+                'texto': texto,
+                'quantidade': quantidade,
+                'nivel': nivel.name,
+              },
+            )
+            as List<dynamic>;
+    return [
+      for (final json in corpo.cast<Map<String, dynamic>>())
+        (
+          pergunta: json['pergunta'] as String,
+          resposta: json['resposta'] as String,
+        ),
+    ];
+  }
+
+  /// Grava os [cartoes] aceitos na Revisão da IA, todos ou nenhum. O backend os marca com
+  /// `origem: "ia"` e ativos, e os devolve na mesma ordem.
+  Future<List<Cartao>> criarCartoesEmLote(
+    String materiaId,
+    List<PerguntaEResposta> cartoes,
+  ) async {
+    final corpo =
+        await _requisitar(
+              'POST',
+              '/api/materias/${Uri.encodeComponent(materiaId)}/cartoes/lote',
+              corpo: {
+                'cartoes': [
+                  for (final c in cartoes)
+                    {'pergunta': c.pergunta, 'resposta': c.resposta},
+                ],
+              },
+            )
+            as List<dynamic>;
+    return corpo
+        .map((json) => Cartao.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
 
   /// Os cartões ativos da matéria (sessão de estudo) ou, com [arquivados], os do Arquivo.
   Future<List<Cartao>> listarCartoes(

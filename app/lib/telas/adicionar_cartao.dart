@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../widgets/coluna_central.dart';
 import '../widgets/formulario_cartao.dart';
+import 'gerar_ia.dart';
 import 'revisao.dart';
 
 /// Adicionar cartão (docs/01-fluxos-de-usuario.md, seção 4, quadro 04 do Figma): os dois caminhos
@@ -18,12 +19,11 @@ class TelaAdicionarCartao extends StatelessWidget {
   final ApiClient api;
   final String materiaId;
 
-  Future<void> _criarManualmente(BuildContext context) async {
-    final aviso = await Navigator.of(context).push<String>(
-      MaterialPageRoute(
-        builder: (_) => _TelaCriarManual(api: api, materiaId: materiaId),
-      ),
-    );
+  /// Abre o caminho [tela] e, se ela devolver o aviso da Revisão, fecha com ele.
+  Future<void> _abrir(BuildContext context, Widget tela) async {
+    final aviso = await Navigator.of(
+      context,
+    ).push<String>(MaterialPageRoute(builder: (_) => tela));
     // Salvou: volta direto para a matéria. Sem aviso, o usuário voltou por conta própria (ou um
     // 401 já fechou tudo).
     if (aviso != null && context.mounted) Navigator.of(context).pop(aviso);
@@ -50,14 +50,20 @@ class TelaAdicionarCartao extends StatelessWidget {
                 icone: Icons.edit_note,
                 titulo: 'Criar manualmente',
                 descricao: 'Digite a pergunta e a resposta',
-                aoTocar: () => _criarManualmente(context),
+                aoTocar: () => _abrir(
+                  context,
+                  _TelaCriarManual(api: api, materiaId: materiaId),
+                ),
               ),
-              // Chega com o E5 (#16).
-              const _Caminho(
+              // O PDF chega no segundo PR do #16; até lá, a descrição não o promete.
+              _Caminho(
                 icone: Icons.auto_awesome_outlined,
                 titulo: 'Gerar com IA',
-                descricao: 'A partir de um texto colado ou de um PDF',
-                aoTocar: null,
+                descricao: 'A partir de um texto colado',
+                aoTocar: () => _abrir(
+                  context,
+                  TelaGerarIa(api: api, materiaId: materiaId),
+                ),
               ),
               Padding(
                 padding: const EdgeInsets.all(16),
@@ -78,8 +84,7 @@ class TelaAdicionarCartao extends StatelessWidget {
   }
 }
 
-/// Um dos dois caminhos, com o mesmo peso visual. Sem [aoTocar], fica desabilitado e marcado
-/// "em breve".
+/// Um dos dois caminhos, com o mesmo peso visual.
 class _Caminho extends StatelessWidget {
   const _Caminho({
     required this.icone,
@@ -91,26 +96,17 @@ class _Caminho extends StatelessWidget {
   final IconData icone;
   final String titulo;
   final String descricao;
-  final VoidCallback? aoTocar;
+  final VoidCallback aoTocar;
 
   @override
   Widget build(BuildContext context) {
-    final tema = Theme.of(context);
     return Card(
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: Icon(icone),
         title: Text(titulo),
         subtitle: Text(descricao),
-        trailing: aoTocar == null
-            ? Text(
-                'em breve',
-                style: tema.textTheme.labelSmall?.copyWith(
-                  color: tema.colorScheme.onSurfaceVariant,
-                ),
-              )
-            : const Icon(Icons.chevron_right),
-        enabled: aoTocar != null,
+        trailing: const Icon(Icons.chevron_right),
         onTap: aoTocar,
       ),
     );
