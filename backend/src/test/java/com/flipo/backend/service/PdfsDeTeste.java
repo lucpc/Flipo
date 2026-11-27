@@ -17,13 +17,16 @@ import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 
 import java.awt.image.BufferedImage;
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.zip.DeflaterOutputStream;
 
 import javax.imageio.ImageIO;
 
@@ -223,6 +226,92 @@ public final class PdfsDeTeste {
 		escreverBruto(conteudo, "BT /F1 12 Tf 72 700 Td (oi) Tj ET".getBytes(StandardCharsets.US_ASCII));
 		adicionarPagina(documento, recursos, conteudo);
 		return salvar(documento, null, CompressParameters.DEFAULT_COMPRESSION);
+	}
+
+	/**
+	 * Uma página com a Helvetica cujo {@code ToUnicode} tem {@code faixas} faixas {@code bfrange} de 16
+	 * milhões de códigos cada ({@code <xx000000> <xxFFFFFF>}). O arquivo tem menos de 1 KB, e o
+	 * {@code CMapParser} do PDFBox cria uma entrada por código da faixa.
+	 */
+	public static byte[] comToUnicodeDeFaixasEnormes(int faixas) {
+		StringBuilder cmap = new StringBuilder("/CIDInit /ProcSet findresource begin 12 dict begin begincmap\n"
+				+ "/CMapName /X def\n1 begincodespacerange <00000000> <FFFFFFFF> endcodespacerange\n"
+				+ faixas + " beginbfrange\n");
+		for (int i = 0; i < faixas; i++) {
+			cmap.append(String.format("<%02X000000> <%02XFFFFFF> <0041>%n", i, i));
+		}
+		cmap.append("endbfrange\nendcmap CMapName currentdict /CMap defineresource pop end end\n");
+
+		PDDocument documento = new PDDocument();
+		COSStream toUnicode = documento.getDocument().createCOSStream();
+		try (OutputStream saida = toUnicode.createOutputStream(COSName.FLATE_DECODE)) {
+			saida.write(cmap.toString().getBytes(StandardCharsets.US_ASCII));
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+		COSDictionary fonte = new COSDictionary();
+		fonte.setItem(COSName.TYPE, COSName.FONT);
+		fonte.setItem(COSName.SUBTYPE, COSName.TYPE1);
+		fonte.setName(COSName.BASE_FONT, "Helvetica");
+		fonte.setItem(COSName.TO_UNICODE, toUnicode);
+		return comFonte(documento, fonte);
+	}
+
+	/**
+	 * Um PDF de uma página com a tabela de referências num fluxo XRef comprimido que declara
+	 * {@code objetos} entradas, todas apontando para o catálogo. Escrito byte a byte: o PDFBox não grava
+	 * uma tabela assim. Com 30 milhões de entradas o arquivo tem uns 300 KB, e o {@code Loader.loadPDF}
+	 * guarda cada entrada num mapa antes de ler qualquer página.
+	 */
+	public static byte[] comTabelaXrefDeclarando(int objetos) {
+		try {
+			ByteArrayOutputStream pdf = new ByteArrayOutputStream();
+			escreverTexto(pdf, "%PDF-1.7\n");
+			byte[] conteudo = "BT /F1 12 Tf 72 700 Td (oi) Tj ET".getBytes(StandardCharsets.US_ASCII);
+			List<String> objetosDoPdf = List.of(
+					"<< /Type /Catalog /Pages 2 0 R >>",
+					"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+					"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font"
+							+ " << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> >>",
+					"<< /Length " + conteudo.length + " >>\nstream\n" + new String(conteudo, StandardCharsets.US_ASCII)
+							+ "\nendstream");
+			int[] posicoes = new int[objetosDoPdf.size() + 1];
+			for (int i = 0; i < objetosDoPdf.size(); i++) {
+				posicoes[i + 1] = pdf.size();
+				escreverTexto(pdf, (i + 1) + " 0 obj\n" + objetosDoPdf.get(i) + "\nendobj\n");
+			}
+			int posicaoDaTabela = pdf.size();
+
+			// Entradas de /W [1 4 2]: tipo, posição, geração. O objeto 0 é livre, o 5 é a própria tabela.
+			ByteArrayOutputStream comprimida = new ByteArrayOutputStream();
+			try (DataOutputStream tabela = new DataOutputStream(
+					new BufferedOutputStream(new DeflaterOutputStream(comprimida), 64 * 1024))) {
+				tabela.writeByte(0);
+				tabela.writeInt(0);
+				tabela.writeShort(65535);
+				for (int i = 1; i <= objetosDoPdf.size(); i++) {
+					tabela.writeByte(1);
+					tabela.writeInt(posicoes[i]);
+					tabela.writeShort(0);
+				}
+				for (int i = objetosDoPdf.size() + 1; i < objetos; i++) {
+					tabela.writeByte(1);
+					tabela.writeInt(i == objetosDoPdf.size() + 1 ? posicaoDaTabela : posicoes[1]);
+					tabela.writeShort(0);
+				}
+			}
+			escreverTexto(pdf, (objetosDoPdf.size() + 1) + " 0 obj\n<< /Type /XRef /Size " + objetos
+					+ " /W [1 4 2] /Root 1 0 R /Filter /FlateDecode /Length " + comprimida.size() + " >>\nstream\n");
+			comprimida.writeTo(pdf);
+			escreverTexto(pdf, "\nendstream\nendobj\nstartxref\n" + posicaoDaTabela + "\n%%EOF\n");
+			return pdf.toByteArray();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	private static void escreverTexto(OutputStream saida, String texto) throws IOException {
+		saida.write(texto.getBytes(StandardCharsets.US_ASCII));
 	}
 
 	/** Uma página com {@code texto} na Liberation Sans, a TrueType que vem no jar do PDFBox, embutida inteira. */
