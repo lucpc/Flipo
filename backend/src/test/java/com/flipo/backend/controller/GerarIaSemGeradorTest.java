@@ -23,8 +23,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * {@code gerar-ia} no contexto da aplicação como ela é hoje, sem nenhum {@link GeradorDeCartoes}
- * registrado (o provedor real é a #15): responde 503 com uma mensagem clara, sem cair num gerador
+ * {@code gerar-ia} no contexto da aplicação sem chave da Anthropic configurada (os testes a fixam
+ * vazia em {@code src/test/resources/config/application.properties}), logo sem nenhum
+ * {@link GeradorDeCartoes} registrado: responde 503 com uma mensagem clara, sem cair num gerador
  * falso. {@code @Transactional} dá rollback ao final, como nos outros testes de controller.
  */
 @SpringBootTest
