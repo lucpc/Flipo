@@ -30,8 +30,8 @@ public class GeracaoDeCartoesService {
 	private final ObjectProvider<GeradorDeCartoes> geradores;
 
 	/**
-	 * Recebe o gerador por {@link ObjectProvider} porque ele é opcional: até existir um provedor
-	 * configurado (#15), não há bean, e o {@code gerar-ia} responde 503.
+	 * Recebe o gerador por {@link ObjectProvider} porque ele é opcional: sem provedor
+	 * configurado (ex: sem {@code ANTHROPIC_API_KEY}), não há bean, e o {@code gerar-ia} responde 503.
 	 */
 	public GeracaoDeCartoesService(MateriaService materiaService, ObjectProvider<GeradorDeCartoes> geradores) {
 		this.materiaService = materiaService;

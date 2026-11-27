@@ -54,6 +54,26 @@ feita a partir do backend (nunca do cliente, para não expor a chave), solicitan
 estruturada em JSON. Essa mesma implementação cobre também a cota padrão em produção — não há uma
 implementação de "fase de produção" separada a escrever depois.
 
+**Como ligar o `GeradorAnthropic`:** definir variáveis de ambiente no processo do backend.
+
+| Variável | Obrigatória | Padrão | Efeito |
+|---|---|---|---|
+| `ANTHROPIC_API_KEY` | sim, para ligar | vazia | Com valor, o `GeradorAnthropic` é registrado. Vazia ou ausente, não há gerador e o `gerar-ia` responde 503 |
+| `ANTHROPIC_MODEL` | não | `claude-haiku-5-5` | Id do modelo usado na geração |
+
+As variáveis alimentam `flipo.ia.anthropic.api-key` e `flipo.ia.anthropic.modelo`
+(`application.properties`). A chave é lida só dessa propriedade: o cliente do SDK não procura
+credenciais no ambiente por conta própria. Ela não aparece em log, resposta nem mensagem de erro.
+Os testes fixam a chave vazia (`src/test/resources/config/application.properties`), então rodam
+sem chamar a API mesmo com `ANTHROPIC_API_KEY` exportada.
+
+A chamada usa saída estruturada (JSON schema derivado do record de resposta), timeout de 60 s e
+uma retentativa (o SDK repete também em timeout), então o pior caso do `gerar-ia` é ~2 min antes do
+502. O log do SDK fica desligado (`ANTHROPIC_LOG` é ignorado), porque em `debug` ele registraria o
+texto do usuário; as falhas são registradas pelo gerador com mensagem sem chave nem texto. Recusa do modelo, corte por `max_tokens`, JSON fora do formato
+ou erro HTTP viram 502 no `gerar-ia`. As instruções fixas vão no `system`; nível, quantidade e
+texto vão na mensagem do usuário, com o texto entre `<texto>` e `</texto>`.
+
 ### Redução de custo (depois de validado, opcional)
 
 Uma vez o fluxo validado, avaliar mover a cota padrão (não-BYOK) para uma opção gratuita ou de

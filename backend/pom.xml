@@ -79,6 +79,14 @@
 			<version>0.12.6</version>
 			<scope>runtime</scope>
 		</dependency>
+
+		<!-- GeradorAnthropic (docs/04-arquitetura-tecnica.md, "Estratégia de IA"). O SDK usa Jackson 2
+		     (com.fasterxml.jackson) internamente; o resto da aplicação continua no Jackson 3 do Boot 4. -->
+		<dependency>
+			<groupId>com.anthropic</groupId>
+			<artifactId>anthropic-java</artifactId>
+			<version>3.14.0</version>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-jpa-test</artifactId>
