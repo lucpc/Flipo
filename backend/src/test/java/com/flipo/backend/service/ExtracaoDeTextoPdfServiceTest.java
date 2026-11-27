@@ -519,13 +519,15 @@ class ExtracaoDeTextoPdfServiceTest {
 	}
 
 	/**
-	 * Um aviso do log unificado da JVM (aqui, o de um arquivo CDS que não existe) iria para a saída
-	 * padrão e estragaria o resultado de todo PDF. Com as flags do comando, vai para a saída de erro.
+	 * O log unificado da JVM escreve na saída padrão (por padrão, os avisos) e estragaria o resultado
+	 * de todo PDF. Com as flags do comando, nada dele vai para a saída padrão. Para o teste não
+	 * depender de um aviso que só algumas versões da JVM emitem, ele liga antes das flags um log que
+	 * sai na partida de qualquer JVM (o do coletor de lixo, na saída padrão), como faria o padrão.
 	 */
 	@Test
 	void avisoDoLogUnificadoDaJvmNaoEntraNaSaidaDoFilho() throws Exception {
 		List<String> comando = new ArrayList<>(service.construtorDoProcesso().command());
-		comando.add(1, "-XX:SharedArchiveFile=/nao-existe.jsa");
+		comando.add(1, "-Xlog:gc=info:stdout");
 		byte[] pdf = PdfsDeTeste.comPaginas(List.of(List.of("Texto")));
 
 		ProcessoDeExtracaoPdf.Resultado resultado = ProcessoDeExtracaoPdf.ler(rodar(comando, pdf));
