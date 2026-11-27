@@ -106,6 +106,86 @@ void main() {
     expect(arquivado.arquivado, isTrue);
   });
 
+  test('gerar-ia envia texto, quantidade inteira e nível canônico, e lê as '
+      'sugestões', () async {
+    final api = clientRespondendo(
+      200,
+      '[{"pergunta":"O que é TCP?","resposta":"Um protocolo"},'
+      '{"pergunta":"O que é UDP?","resposta":"Outro protocolo"}]',
+    );
+
+    final sugestoes = await api.gerarIa(
+      'm/1',
+      'Texto sobre transporte.',
+      12,
+      NivelDeCartao.aplicacao,
+    );
+    await api.gerarIa('m/1', 'Outro texto.', 10, NivelDeCartao.definicao);
+
+    expect(requisicoes[0].method, 'POST');
+    expect(
+      requisicoes[0].url.toString(),
+      'http://api.teste/api/materias/m%2F1/cartoes/gerar-ia',
+    );
+    expect(
+      requisicoes[0].headers['Content-Type'],
+      startsWith('application/json'),
+    );
+    expect(jsonDecode(requisicoes[0].body), {
+      'texto': 'Texto sobre transporte.',
+      'quantidade': 12,
+      'nivel': 'aplicacao',
+    });
+    expect(jsonDecode(requisicoes[1].body), {
+      'texto': 'Outro texto.',
+      'quantidade': 10,
+      'nivel': 'definicao',
+    });
+    expect(sugestoes, [
+      (pergunta: 'O que é TCP?', resposta: 'Um protocolo'),
+      (pergunta: 'O que é UDP?', resposta: 'Outro protocolo'),
+    ]);
+  });
+
+  test('gerar-ia com 502 lança o erro com o status', () async {
+    final api = clientRespondendo(502, '{"mensagem":"Falha ao gerar."}');
+
+    await expectLater(
+      api.gerarIa('m1', 'Texto.', 10, NivelDeCartao.definicao),
+      throwsA(isA<ApiException>().having((e) => e.status, 'status', 502)),
+    );
+  });
+
+  test('lote envia só pergunta e resposta de cada cartão, na ordem, e lê os '
+      'gravados', () async {
+    final api = clientRespondendo(
+      201,
+      '[{"id":"c1","pergunta":"O que é TCP?","resposta":"Um protocolo",'
+      '"origem":"ia","arquivado":false},'
+      '{"id":"c2","pergunta":"O que é UDP?","resposta":"Outro",'
+      '"origem":"ia","arquivado":false}]',
+    );
+
+    final cartoes = await api.criarCartoesEmLote('m/1', [
+      (pergunta: 'O que é TCP?', resposta: 'Um protocolo'),
+      (pergunta: 'O que é UDP?', resposta: 'Outro'),
+    ]);
+
+    expect(requisicoes.single.method, 'POST');
+    expect(
+      requisicoes.single.url.toString(),
+      'http://api.teste/api/materias/m%2F1/cartoes/lote',
+    );
+    expect(jsonDecode(requisicoes.single.body), {
+      'cartoes': [
+        {'pergunta': 'O que é TCP?', 'resposta': 'Um protocolo'},
+        {'pergunta': 'O que é UDP?', 'resposta': 'Outro'},
+      ],
+    });
+    expect([for (final c in cartoes) c.id], ['c1', 'c2']);
+    expect(cartoes.every((c) => c.origem == 'ia' && !c.arquivado), isTrue);
+  });
+
   test('login envia e-mail e senha e guarda o token recebido', () async {
     final api = clientRespondendo(200, '{"token":"jwt-novo"}');
 

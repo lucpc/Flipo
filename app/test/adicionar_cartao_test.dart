@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flipo/api/api_client.dart';
 import 'package:flipo/main.dart';
 import 'package:flipo/telas/autenticacao.dart';
+import 'package:flipo/telas/gerar_ia.dart';
 import 'package:flipo/telas/materias.dart';
 import 'package:flipo/telas/revisao.dart';
 import 'package:flipo/theme.dart';
@@ -120,18 +121,12 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('mostra os dois caminhos, com Gerar com IA desabilitado', (
-      tester,
-    ) async {
+    testWidgets('mostra os dois caminhos, ambos habilitados', (tester) async {
       await abrirAdicionar(tester, {'GET /api/materias': listagem()});
 
       expect(find.text('Como você quer criar?'), findsOneWidget);
       expect(find.text('Digite a pergunta e a resposta'), findsOneWidget);
-      expect(
-        find.text('A partir de um texto colado ou de um PDF'),
-        findsOneWidget,
-      );
-      expect(find.text('em breve'), findsOneWidget);
+      expect(find.text('A partir de um texto colado'), findsOneWidget);
       expect(
         find.text(
           'Nos dois caminhos você revisa tudo antes de salvar — nenhum '
@@ -142,11 +137,12 @@ void main() {
       ListTile caminho(String titulo) =>
           tester.widget<ListTile>(find.widgetWithText(ListTile, titulo));
       expect(caminho('Criar manualmente').enabled, isTrue);
-      expect(caminho('Gerar com IA').enabled, isFalse);
+      expect(caminho('Gerar com IA').enabled, isTrue);
 
       await tester.tap(find.text('Gerar com IA'));
       await tester.pumpAndSettle();
-      expect(find.text('Como você quer criar?'), findsOneWidget);
+      expect(find.byType(TelaGerarIa), findsOneWidget);
+      expect(find.text('Como você quer criar?'), findsNothing);
     });
 
     testWidgets('o formulário manual valida e leva à Revisão com o cartão já '
